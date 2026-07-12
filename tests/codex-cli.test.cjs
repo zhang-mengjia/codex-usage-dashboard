@@ -16,3 +16,21 @@ test("reports a useful error when Codex is not installed", () => {
     /未找到 Codex/,
   );
 });
+
+test("finds the bundled Codex CLI and common CLI locations on macOS", () => {
+  const env = { PATH: "/usr/bin:/opt/homebrew/bin" };
+  const candidates = executableCandidates(env, "/Users/test", "darwin");
+  assert.equal(candidates[0], "/Applications/Codex.app/Contents/Resources/codex");
+  assert.ok(candidates.includes("/Users/test/.local/bin/codex"));
+  assert.ok(candidates.includes("/opt/homebrew/bin/codex"));
+  assert.ok(candidates.includes("/usr/bin/codex"));
+  assert.equal(
+    findCodexExecutable({
+      env,
+      homeDir: "/Users/test",
+      platform: "darwin",
+      exists: (value) => value === "/Applications/Codex.app/Contents/Resources/codex",
+    }),
+    "/Applications/Codex.app/Contents/Resources/codex",
+  );
+});

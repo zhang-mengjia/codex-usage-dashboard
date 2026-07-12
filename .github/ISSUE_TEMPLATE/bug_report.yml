@@ -16,7 +16,7 @@ body:
   - type: input
     id: environment
     attributes:
-      label: Windows and ChatGPT/Codex versions
+      label: Operating system and ChatGPT/Codex versions
     validations:
       required: true
   - type: textarea

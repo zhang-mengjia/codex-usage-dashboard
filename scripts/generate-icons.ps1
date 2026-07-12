@@ -30,6 +30,20 @@ $stream = [System.IO.File]::Open($icoPath, [System.IO.FileMode]::Create)
 $icon.Save($stream)
 $stream.Close()
 
+$macBitmap = New-Object System.Drawing.Bitmap 1024, 1024
+$macGraphics = [System.Drawing.Graphics]::FromImage($macBitmap)
+$macGraphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$macGraphics.Clear([System.Drawing.Color]::Transparent)
+$macGraphics.ScaleTransform(4, 4)
+$macGraphics.FillEllipse($blackBrush, 12, 12, 232, 232)
+$macGraphics.DrawArc($whitePen, 64, 57, 128, 142, 48, 263)
+$macGraphics.DrawLine($whitePen, 134, 66, 168, 66)
+$macGraphics.FillEllipse($greenBrush, 176, 174, 37, 37)
+$macPngPath = Join-Path $OutputDirectory "icon-mac.png"
+$macBitmap.Save($macPngPath, [System.Drawing.Imaging.ImageFormat]::Png)
+$macGraphics.Dispose()
+$macBitmap.Dispose()
+
 $icon.Dispose()
 $whitePen.Dispose()
 $blackBrush.Dispose()
@@ -39,3 +53,4 @@ $bitmap.Dispose()
 
 Write-Output $pngPath
 Write-Output $icoPath
+Write-Output $macPngPath
