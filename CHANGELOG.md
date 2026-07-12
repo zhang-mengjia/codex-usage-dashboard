@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## [1.3.0] - 2026-07-12
+
+### Added
+
+- Isolated official ChatGPT OAuth session for live quota reads without refresh-token races with the ChatGPT/Codex process.
+- Individual reset-credit rows with backend title, description, grant time, and expiry.
+- Independent always-on-top pin and floating-ball buttons.
+
+### Changed
+
+- The former layer button now toggles maximize/restore.
+- Live quota failures now show an explicit unavailable state instead of a conversation snapshot or cached reset count.
+- The Windows floating ball uses a true circular window region with no rectangular shadow.
+
+### Removed
+
+- Default-size restore and desktop-pinning controls.
+
 ## [1.2.0] - 2026-07-12
 
 ### Added
@@ -35,4 +53,5 @@ All notable changes to this project are documented here.
 - Window hit testing and border rendering were corrected for transparent frameless windows.
 
 [1.2.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.2.0
+[1.3.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.3.0
 [1.1.1]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.1.1

@@ -1,11 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { WINDOW_MODES, isWindowMode, snapFloatingBounds } = require("../src/lib/window-modes.cjs");
+const { WINDOW_MODES, circleShapeRects, isWindowMode, snapFloatingBounds } = require("../src/lib/window-modes.cjs");
 
-test("exposes exactly the four requested window modes", () => {
-  assert.deepEqual(Object.values(WINDOW_MODES).sort(), ["desktop", "floating", "top", "window"]);
-  assert.equal(isWindowMode("desktop"), true);
+test("keeps only regular-window and floating-ball modes", () => {
+  assert.deepEqual(Object.values(WINDOW_MODES).sort(), ["floating", "window"]);
+  assert.equal(isWindowMode("desktop"), false);
   assert.equal(isWindowMode("unknown"), false);
+});
+
+test("builds a true circular hit region for the floating ball", () => {
+  const rects = circleShapeRects(78);
+  assert.equal(rects.length, 78);
+  assert.ok(rects[0].width < rects[39].width);
+  assert.equal(rects[39].width, 78);
+  assert.ok(rects.every((rect) => rect.height === 1 && rect.width > 0));
 });
 
 test("snaps a floating ball to the nearest edge and clamps its y position", () => {

@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const {
   app,
@@ -11,18 +12,16 @@ const {
   Tray,
 } = require("electron");
 const { CodexAppServerClient } = require("./lib/codex-app-server.cjs");
-const { CodexControlService, readCachedResetCredits, readLatestRateLimits } = require("./lib/codex-control.cjs");
+const { CodexControlService } = require("./lib/codex-control.cjs");
 const { detectIntegratedChatGpt, queryIntegratedChatGptPackage } = require("./lib/chatgpt-host.cjs");
 const { HostProcessWatcher } = require("./lib/process-watcher.cjs");
 const {
-  applyMacDesktopLayer,
   clearMacWindowLayer,
   isVisibleOnAllWorkspaces,
   setMacFloatingLayer,
 } = require("./lib/platform-window.cjs");
 const { normalizeRateLimits } = require("./lib/usage-model.cjs");
-const { WINDOW_MODES, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
-const { invokeWindowsLayer, nativeWindowHandle } = require("./lib/windows-layer.cjs");
+const { WINDOW_MODES, circleShapeRects, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
 
 const argv = process.argv.slice(1);
 let isBackgroundLaunch = argv.includes("--background");
@@ -42,10 +41,9 @@ let reconnectTimer = null;
 let snapTimer = null;
 let quitting = false;
 let dashboardHasBeenShown = false;
-let desktopLayerActive = false;
 let skipTaskbar = false;
-let lastNativeLayer = null;
 let pointerSession = null;
+let activeLoginId = null;
 
 const DEFAULT_WINDOW_SIZE = Object.freeze({ width: 640, height: 820 });
 const MIN_WINDOW_SIZE = Object.freeze({ width: 520, height: 620 });
@@ -53,7 +51,9 @@ const MIN_WINDOW_SIZE = Object.freeze({ width: 520, height: 620 });
 const state = {
   platform: process.platform,
   mode: WINDOW_MODES.WINDOW,
+  window: { alwaysOnTop: false, maximized: false },
   preferences: { locale: "zh-CN", surface: "codex" },
+  auth: { state: "checking", error: null },
   usage: null,
   control: null,
   host: { detected: false, processName: null },
@@ -73,10 +73,21 @@ function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
-function layerScriptPath() {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, "windows-layer.ps1")
-    : path.join(__dirname, "..", "resources", "windows-layer.ps1");
+function sharedCodexHome() {
+  return process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+}
+
+function dashboardCodexHome() {
+  return path.join(app.getPath("userData"), "codex-home");
+}
+
+function prepareDashboardCodexHome() {
+  const target = dashboardCodexHome();
+  fs.mkdirSync(target, { recursive: true });
+  const sourceConfig = path.join(sharedCodexHome(), "config.toml");
+  const targetConfig = path.join(target, "config.toml");
+  if (!fs.existsSync(targetConfig) && fs.existsSync(sourceConfig)) fs.copyFileSync(sourceConfig, targetConfig);
+  return target;
 }
 
 function iconPath() {
@@ -88,11 +99,12 @@ function iconPath() {
 function readSettings() {
   try {
     const value = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
-    if ((value.version === 2 || value.version === 3) && isWindowMode(value.mode)) {
-      state.mode = value.mode;
+    if ([2, 3, 4].includes(value.version)) {
+      state.mode = value.mode === WINDOW_MODES.FLOATING ? WINDOW_MODES.FLOATING : WINDOW_MODES.WINDOW;
+      state.window.alwaysOnTop = Boolean(value.alwaysOnTop || value.mode === "top");
       if (["zh-CN", "en"].includes(value.locale)) state.preferences.locale = value.locale;
       if (["codex", "work", "chat"].includes(value.surface)) state.preferences.surface = value.surface;
-      if (value.version !== 3) writeSettings();
+      if (value.version !== 4) writeSettings();
     } else {
       state.mode = WINDOW_MODES.WINDOW;
       writeSettings();
@@ -106,8 +118,9 @@ function writeSettings() {
   try {
     fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
     fs.writeFileSync(settingsPath(), JSON.stringify({
-      version: 3,
+      version: 4,
       mode: state.mode,
+      alwaysOnTop: state.window.alwaysOnTop,
       locale: state.preferences.locale,
       surface: state.preferences.surface,
     }, null, 2));
@@ -129,6 +142,19 @@ function broadcast(channel, value) {
 function updateStatus(patch) {
   Object.assign(state.status, patch);
   broadcast("dashboard:status", state.status);
+}
+
+function updateAuth(patch) {
+  Object.assign(state.auth, patch);
+  broadcast("dashboard:auth", state.auth);
+}
+
+function updateWindowState() {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    state.window.maximized = dashboardWindow.isMaximized();
+    state.window.alwaysOnTop = dashboardWindow.isAlwaysOnTop();
+  }
+  broadcast("dashboard:window-state", state.window);
 }
 
 function updateHost(host) {
@@ -157,8 +183,6 @@ function createDashboardWindow() {
     height: DEFAULT_WINDOW_SIZE.height,
     minWidth: MIN_WINDOW_SIZE.width,
     minHeight: MIN_WINDOW_SIZE.height,
-    maxWidth: 960,
-    maxHeight: 1080,
     show: false,
     frame: false,
     transparent: false,
@@ -166,8 +190,8 @@ function createDashboardWindow() {
     roundedCorners: true,
     shadow: true,
     resizable: true,
-    maximizable: false,
-    fullscreenable: false,
+    maximizable: true,
+    fullscreenable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -183,7 +207,12 @@ function createDashboardWindow() {
       void hideDashboard();
     }
   });
-  window.on("restore", () => window.webContents.send("dashboard:mode", state.mode));
+  window.on("restore", () => {
+    window.webContents.send("dashboard:mode", state.mode);
+    updateWindowState();
+  });
+  window.on("maximize", updateWindowState);
+  window.on("unmaximize", updateWindowState);
   window.webContents.on("did-finish-load", () => {
     window.webContents.send("dashboard:usage", state.usage);
     window.webContents.send("dashboard:control", state.control);
@@ -191,6 +220,8 @@ function createDashboardWindow() {
     window.webContents.send("dashboard:mode", state.mode);
     window.webContents.send("dashboard:host", state.host);
     window.webContents.send("dashboard:preferences", state.preferences);
+    window.webContents.send("dashboard:auth", state.auth);
+    window.webContents.send("dashboard:window-state", state.window);
   });
   return window;
 }
@@ -222,6 +253,7 @@ function createBallWindow() {
     },
   });
   window.setAlwaysOnTop(true, "floating");
+  if (process.platform !== "darwin") window.setShape(circleShapeRects(78));
   window.loadFile(rendererPath(), { query: { view: "ball" } });
   window.on("close", (event) => {
     if (!quitting) {
@@ -238,6 +270,7 @@ function createBallWindow() {
     window.webContents.send("dashboard:status", state.status);
     window.webContents.send("dashboard:mode", state.mode);
     window.webContents.send("dashboard:preferences", state.preferences);
+    window.webContents.send("dashboard:auth", state.auth);
   });
   return window;
 }
@@ -253,15 +286,8 @@ function createTray() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: english ? "Show as regular window" : "显示为普通窗口（恢复）", click: () => applyWindowMode(WINDOW_MODES.WINDOW) },
-      {
-        label: english ? "Window mode" : "窗口模式",
-        submenu: [
-          { label: english ? "Always on top" : "置顶显示", click: () => applyWindowMode(WINDOW_MODES.TOP) },
-          { label: english ? "Pin to desktop" : "固定在桌面", click: () => applyWindowMode(WINDOW_MODES.DESKTOP) },
-          { label: english ? "Regular window" : "普通窗口", click: () => applyWindowMode(WINDOW_MODES.WINDOW) },
-          { label: english ? "Floating ball" : "悬浮球", click: () => applyWindowMode(WINDOW_MODES.FLOATING) },
-        ],
-      },
+      { label: english ? "Always on top" : "置顶显示", type: "checkbox", checked: state.window.alwaysOnTop, click: () => togglePinned() },
+      { label: english ? "Floating ball" : "悬浮球", click: () => applyWindowMode(WINDOW_MODES.FLOATING) },
       { label: english ? "Refresh now" : "立即刷新", click: () => refreshAll() },
       { type: "separator" },
       {
@@ -273,66 +299,19 @@ function createTray() {
   tray.on("click", () => applyWindowMode(WINDOW_MODES.WINDOW));
 }
 
-async function runNativeLayer(mode) {
-  if (process.platform !== "win32" || !dashboardWindow) return null;
-  const result = await invokeWindowsLayer(
-    layerScriptPath(),
-    nativeWindowHandle(dashboardWindow),
-    mode,
-  );
-  lastNativeLayer = result;
-  desktopLayerActive = mode === "desktop" && result.parentHandle !== "0";
-  return result;
-}
-
-async function refreshDesktop() {
-  if (process.platform !== "win32") return;
-  try {
-    await invokeWindowsLayer(layerScriptPath(), "0", "refresh");
-  } catch {
-    // Desktop redraw is best-effort cleanup.
-  }
-}
-
-async function attachNativeDesktopLayer() {
-  await runNativeLayer("desktop");
-  if (desktopLayerActive) return;
-  await refreshDesktop();
-  await new Promise((resolve) => setTimeout(resolve, 160));
-  await runNativeLayer("desktop");
-  if (!desktopLayerActive) throw new Error("Windows 桌面层暂时不可用");
-}
-
-async function restoreNativeLayer() {
-  if (!desktopLayerActive) return;
-  if (process.platform === "win32") await runNativeLayer("normal");
-  else if (process.platform === "darwin") clearMacWindowLayer(dashboardWindow);
-  desktopLayerActive = false;
-}
-
 async function hideDashboard() {
   if (!dashboardWindow || dashboardWindow.isDestroyed()) return true;
-  if (desktopLayerActive || state.mode === WINDOW_MODES.DESKTOP) {
-    await restoreNativeLayer();
-    state.mode = WINDOW_MODES.WINDOW;
-    writeSettings();
-    broadcast("dashboard:mode", state.mode);
-    await refreshDesktop();
-  }
   dashboardWindow.hide();
   return true;
 }
 
 async function quitApplication() {
-  if (desktopLayerActive) await restoreNativeLayer();
-  await refreshDesktop();
   quitting = true;
   app.quit();
 }
 
 async function applyWindowMode(mode, options = {}) {
   if (!isWindowMode(mode)) throw new Error(`未知窗口模式: ${mode}`);
-  await restoreNativeLayer();
   state.mode = mode;
   if (!options.skipSave) writeSettings();
 
@@ -341,7 +320,7 @@ async function applyWindowMode(mode, options = {}) {
   ballWindow.hide();
   dashboardWindow.setResizable(true);
   dashboardWindow.setFocusable(true);
-  dashboardWindow.setAlwaysOnTop(false);
+  dashboardWindow.setAlwaysOnTop(state.window.alwaysOnTop, "floating");
   dashboardWindow.setSkipTaskbar(false);
   skipTaskbar = false;
 
@@ -353,34 +332,33 @@ async function applyWindowMode(mode, options = {}) {
     snapBallToEdge();
   } else {
     if (dashboardWindow.isMinimized()) dashboardWindow.restore();
-    if (mode === WINDOW_MODES.TOP) {
-      dashboardWindow.setAlwaysOnTop(true, "floating");
-    } else if (mode === WINDOW_MODES.DESKTOP) {
-      dashboardWindow.setSkipTaskbar(true);
-      skipTaskbar = true;
-      if (process.platform === "darwin") {
-        desktopLayerActive = applyMacDesktopLayer(dashboardWindow);
-      }
-    }
-    if (mode === WINDOW_MODES.DESKTOP && process.platform === "darwin") dashboardWindow.showInactive();
-    else {
-      dashboardWindow.show();
-      dashboardWindow.focus();
-    }
+    dashboardWindow.show();
+    dashboardWindow.focus();
     dashboardHasBeenShown = true;
-    if (mode === WINDOW_MODES.DESKTOP && process.platform === "win32") {
-      try {
-        await attachNativeDesktopLayer();
-      } catch (error) {
-        updateStatus({
-          state: "warning",
-          message: "桌面层降级为普通窗口",
-          error: error.message,
-        });
-      }
-    }
   }
   broadcast("dashboard:mode", state.mode);
+  updateWindowState();
+  return diagnostics();
+}
+
+async function togglePinned() {
+  state.window.alwaysOnTop = !state.window.alwaysOnTop;
+  dashboardWindow.setAlwaysOnTop(state.window.alwaysOnTop, "floating");
+  writeSettings();
+  updateWindowState();
+  tray?.destroy();
+  createTray();
+  return diagnostics();
+}
+
+async function toggleFloating() {
+  return applyWindowMode(state.mode === WINDOW_MODES.FLOATING ? WINDOW_MODES.WINDOW : WINDOW_MODES.FLOATING);
+}
+
+async function toggleMaximized() {
+  if (dashboardWindow.isMaximized()) dashboardWindow.unmaximize();
+  else dashboardWindow.maximize();
+  updateWindowState();
   return diagnostics();
 }
 
@@ -409,6 +387,7 @@ async function refreshUsage() {
   try {
     const payload = await usageClient.readRateLimits();
     state.usage = normalizeRateLimits(payload);
+    updateAuth({ state: "signedIn", error: null });
     updateStatus({
       state: "live",
       message: "实时更新",
@@ -418,22 +397,14 @@ async function refreshUsage() {
     broadcast("dashboard:usage", state.usage);
     return state.usage;
   } catch (error) {
-    const fallback = readLatestRateLimits(state.control?.context?.path);
-    if (fallback) {
-      const resetCredits = readCachedResetCredits();
-      if (resetCredits) fallback.rateLimitResetCredits = resetCredits;
-      state.usage = normalizeRateLimits(fallback);
-      updateStatus({
-        state: "warning",
-        message: "已从当前会话同步额度",
-        error: `实时接口暂不可用：${error.message}`,
-        lastSuccessfulAt: state.usage.updatedAt,
-      });
-      broadcast("dashboard:usage", state.usage);
-      return state.usage;
-    }
-    updateStatus({ state: "error", message: "暂时无法更新", error: error.message });
-    scheduleReconnect();
+    const authRequired = /401|token|sign.?in|登录|auth/i.test(error.message);
+    if (authRequired) updateAuth({ state: "required", error: error.message });
+    if (!state.usage) broadcast("dashboard:usage", null);
+    updateStatus({
+      state: "error",
+      message: authRequired ? "请连接 ChatGPT 账户" : "实时额度暂不可用",
+      error: error.message,
+    });
     throw error;
   }
 }
@@ -448,13 +419,13 @@ async function refreshControl() {
 async function refreshAll() {
   updateStatus({ state: "refreshing", message: "正在刷新全部信息…", error: null });
   try {
-    const control = await refreshControl();
+    let control = state.control;
+    try { control = await refreshControl(); } catch {}
     const usage = await refreshUsage();
-    const isSessionFallback = usage?.source === "codex-session";
     updateStatus({
-      state: isSessionFallback ? "warning" : "live",
-      message: isSessionFallback ? "已从当前会话同步额度" : "实时更新",
-      error: isSessionFallback ? state.status.error : null,
+      state: "live",
+      message: "实时更新",
+      error: null,
       lastSuccessfulAt: Date.now(),
     });
     return { usage, control };
@@ -476,7 +447,14 @@ function scheduleReconnect() {
 
 async function startUsageService() {
   if (usageClient || quitting) return;
-  usageClient = new CodexAppServerClient();
+  const codexHome = prepareDashboardCodexHome();
+  usageClient = new CodexAppServerClient({
+    env: {
+      ...process.env,
+      CODEX_HOME: codexHome,
+      CODEX_SQLITE_HOME: sharedCodexHome(),
+    },
+  });
   controlService = new CodexControlService(usageClient);
   usageClient.on("rate-limits-updated", () => {
     clearTimeout(refreshTimer);
@@ -488,17 +466,33 @@ async function startUsageService() {
     controlService = null;
     scheduleReconnect();
   });
+  usageClient.on("notification", (message) => {
+    if (message.method !== "account/login/completed") return;
+    activeLoginId = null;
+    updateAuth({ state: message.params?.success === false ? "required" : "signedIn", error: message.params?.error || null });
+    if (message.params?.success !== false) refreshAll().catch(() => {});
+  });
   try {
     await usageClient.start();
-    await refreshControl();
-    await refreshUsage();
+    const account = await usageClient.readAccount(false);
+    updateAuth({ state: account?.account ? "signedIn" : "required", error: null });
+    try { await refreshControl(); } catch {}
+    if (account?.account) await refreshUsage();
+    else updateStatus({ state: "error", message: "请连接 ChatGPT 账户", error: null });
   } catch (error) {
-    updateStatus({ state: "error", message: "无法连接 Codex", error: error.message });
-    usageClient?.stop();
-    usageClient = null;
-    controlService = null;
-    scheduleReconnect();
+    updateAuth({ state: "required", error: error.message });
+    updateStatus({ state: "error", message: "请连接 ChatGPT 账户", error: error.message });
   }
+}
+
+async function connectChatGptAccount() {
+  if (!usageClient) await startUsageService();
+  if (activeLoginId) return state.auth;
+  const login = await usageClient.startChatGptLogin();
+  activeLoginId = login.loginId;
+  updateAuth({ state: "pending", error: null });
+  await shell.openExternal(login.authUrl);
+  return state.auth;
 }
 
 function startHostWatcher() {
@@ -552,27 +546,14 @@ async function openChatGpt() {
 }
 
 async function diagnostics() {
-  let nativeLayer = lastNativeLayer;
-  if (dashboardWindow && process.platform === "win32") {
-    try {
-      nativeLayer = await invokeWindowsLayer(
-        layerScriptPath(),
-        nativeWindowHandle(dashboardWindow),
-        "query",
-      );
-    } catch {
-      // Keep the last successful native layer result.
-    }
-  }
   return {
     mode: state.mode,
     platform: process.platform,
-    desktopLayerActive,
-    nativeLayer,
     main: dashboardWindow
       ? {
           visible: dashboardWindow.isVisible(),
           minimized: dashboardWindow.isMinimized(),
+          maximized: dashboardWindow.isMaximized(),
           alwaysOnTop: dashboardWindow.isAlwaysOnTop(),
           visibleOnAllWorkspaces: isVisibleOnAllWorkspaces(dashboardWindow),
           skipTaskbar,
@@ -589,27 +570,13 @@ async function diagnostics() {
       : null,
     loginItem: app.getLoginItemSettings(loginItemQueryOptions()),
     status: state.status,
+    auth: state.auth,
     host: state.host,
   };
 }
 
-function restoreDefaultSize() {
-  if (!dashboardWindow || dashboardWindow.isDestroyed()) return null;
-  const display = screen.getDisplayMatching(dashboardWindow.getBounds());
-  const width = Math.min(DEFAULT_WINDOW_SIZE.width, display.workArea.width);
-  const height = Math.min(DEFAULT_WINDOW_SIZE.height, display.workArea.height);
-  const bounds = {
-    x: Math.round(display.workArea.x + (display.workArea.width - width) / 2),
-    y: Math.round(display.workArea.y + (display.workArea.height - height) / 2),
-    width,
-    height,
-  };
-  dashboardWindow.setBounds(bounds, true);
-  return bounds;
-}
-
 function beginWindowPointerAction(payload) {
-  if (!dashboardWindow || dashboardWindow.isDestroyed()) return;
+  if (!dashboardWindow || dashboardWindow.isDestroyed() || dashboardWindow.isMaximized()) return;
   const edge = String(payload?.edge || "").toLowerCase();
   if (!/^(n|s|e|w|ne|nw|se|sw)$/.test(edge)) return;
   pointerSession = {
@@ -660,22 +627,25 @@ async function runSelfTest(outputPath) {
 
   try {
     await waitForCondition(() => !dashboardWindow.webContents.isLoadingMainFrame());
-    const refreshed = await refreshAll();
-    const liveUsage = refreshed.usage;
-    requireValue(liveUsage?.limitId === "codex", "实时额度读取失败");
-    requireValue(Number.isFinite(liveUsage?.resetCredits?.availableCount), "重置次数仍是未知值");
-    record("live-usage", {
-      source: liveUsage.source,
-      primaryRemaining: liveUsage.primary?.remainingPercent,
-      secondaryRemaining: liveUsage.secondary?.remainingPercent,
-      resetCount: liveUsage.resetCredits.availableCount,
-      resetCountSource: liveUsage.resetCredits.source,
-    });
+    let refreshed = null;
+    try { refreshed = await refreshAll(); } catch {}
+    const liveUsage = refreshed?.usage || state.usage;
+    if (state.auth.state === "signedIn") {
+      requireValue(liveUsage?.limitId === "codex", "实时额度读取失败");
+      requireValue(liveUsage?.source !== "codex-session", "错误地使用了会话快照冒充实时额度");
+      requireValue(Number.isFinite(liveUsage?.resetCredits?.availableCount), "重置次数仍是未知值");
+      record("live-usage", {
+        source: liveUsage.source,
+        primaryRemaining: liveUsage.primary?.remainingPercent,
+        secondaryRemaining: liveUsage.secondary?.remainingPercent,
+        resetCount: liveUsage.resetCredits.availableCount,
+        resetItemCount: liveUsage.resetCredits.items.length,
+      });
+    } else {
+      requireValue(!state.usage, "未认证时不应显示旧会话额度");
+      record("auth-required-no-fake-usage");
+    }
 
-    requireValue(state.control?.account?.email, "账户信息读取失败");
-    requireValue(state.control?.context?.tokenUsage?.contextWindow > 0, "对话上下文读取失败");
-    requireValue(state.control?.catalog?.models?.length > 0, "模型列表读取失败");
-    requireValue(state.control?.catalog?.permissions?.length > 0, "权限列表读取失败");
     const controlDom = await dashboardWindow.webContents.executeJavaScript(`({
       account: document.getElementById('account-email').textContent,
       threadCount: document.getElementById('thread-select').options.length,
@@ -684,13 +654,19 @@ async function runSelfTest(outputPath) {
       compactEnabled: !document.getElementById('compact-button').disabled,
       resetCount: document.getElementById('reset-count').textContent,
       resetDetails: document.getElementById('reset-list').textContent,
+      resetRows: document.querySelectorAll('.reset-item').length,
+      primaryRemaining: document.getElementById('primary-remaining').textContent,
+      secondaryRemaining: document.getElementById('secondary-remaining').textContent,
+      connectVisible: !document.getElementById('connect-account-button').hidden,
       purchaseContent: document.body.textContent.includes('升级套餐') || document.body.textContent.includes('添加额度')
     })`);
-    requireValue(controlDom.account.includes("@"), "账户没有渲染到界面");
-    requireValue(controlDom.threadCount > 0 && controlDom.modelCount > 0 && controlDom.permissionCount > 0, "控制选项没有渲染到界面");
-    requireValue(controlDom.compactEnabled, "一键压缩按钮不可用");
-    requireValue(controlDom.resetCount.includes(String(liveUsage.resetCredits.availableCount)), "重置次数没有正确渲染到界面");
-    requireValue(controlDom.resetDetails.includes(String(liveUsage.resetCredits.availableCount)), "重置次数详情与徽标不一致");
+    if (liveUsage) {
+      requireValue(controlDom.resetCount.includes(String(liveUsage.resetCredits.availableCount)), "重置次数没有正确渲染到界面");
+      requireValue(liveUsage.resetCredits.items.length === 0 || controlDom.resetDetails.includes(liveUsage.resetCredits.items[0].title), "单次重置详情没有渲染");
+      requireValue(controlDom.resetRows === liveUsage.resetCredits.items.length, "单次重置详情数量与官方接口不一致");
+      requireValue(controlDom.primaryRemaining.includes(String(liveUsage.primary.remainingPercent)), "5 小时额度与官方接口不一致");
+      requireValue(controlDom.secondaryRemaining.includes(String(liveUsage.secondary.remainingPercent)), "每周额度与官方接口不一致");
+    } else requireValue(controlDom.connectVisible, "认证失效时没有显示连接账户入口");
     requireValue(!controlDom.purchaseContent, "仍残留购买额度内容");
     record("account-context-controls", controlDom);
 
@@ -742,43 +718,25 @@ async function runSelfTest(outputPath) {
     record("opaque-window", { bodyBackground });
 
     await applyWindowMode(WINDOW_MODES.WINDOW);
-    await dashboardWindow.webContents.executeJavaScript(
-      "document.getElementById('layer-button').click(); document.querySelector('[data-mode=top]').click()",
-    );
-    await waitForCondition(() => state.mode === WINDOW_MODES.TOP && dashboardWindow.isAlwaysOnTop());
-    record("always-on-top-ui");
+    const pinBefore = dashboardWindow.isAlwaysOnTop();
+    await dashboardWindow.webContents.executeJavaScript("document.getElementById('pin-button').click()");
+    await waitForCondition(() => dashboardWindow.isAlwaysOnTop() !== pinBefore);
+    requireValue(state.mode === WINDOW_MODES.WINDOW, "置顶按钮不应改变窗口模式");
+    record("independent-always-on-top", { before: pinBefore, after: dashboardWindow.isAlwaysOnTop() });
 
-    await dashboardWindow.webContents.executeJavaScript(
-      "document.getElementById('layer-button').click(); document.querySelector('[data-mode=desktop]').click()",
-    );
-    await waitForCondition(() => state.mode === WINDOW_MODES.DESKTOP && desktopLayerActive);
-    let diag = await diagnostics();
-    if (process.platform === "win32") {
-      requireValue(diag.nativeLayer?.parentHandle !== "0", "桌面层未绑定");
-      requireValue(diag.nativeLayer?.acceptsHit === true, "桌面模式窗口未接收原生命中测试");
-      record("desktop-layer-clickable", { nativeLayer: diag.nativeLayer });
-    } else {
-      requireValue(diag.main?.visibleOnAllWorkspaces === true, "macOS 桌面模式未显示在所有桌面空间");
-      requireValue(diag.main?.alwaysOnTop === false, "macOS 桌面模式不应覆盖普通应用窗口");
-      record("desktop-spaces-mode", { main: diag.main });
-    }
+    await dashboardWindow.webContents.executeJavaScript("document.getElementById('layer-button').click()");
+    await waitForCondition(() => dashboardWindow.isMaximized());
+    await dashboardWindow.webContents.executeJavaScript("document.getElementById('layer-button').click()");
+    await waitForCondition(() => !dashboardWindow.isMaximized());
+    record("maximize-restore-button");
 
-    await dashboardWindow.webContents.executeJavaScript("document.getElementById('close-button').click()");
-    await waitForCondition(() => !dashboardWindow.isVisible() && state.mode === WINDOW_MODES.WINDOW && !desktopLayerActive);
-    diag = await diagnostics();
-    if (process.platform === "win32") requireValue(diag.nativeLayer?.parentHandle === "0", "隐藏后仍残留桌面父级");
-    else requireValue(diag.main?.visibleOnAllWorkspaces === false, "隐藏后仍残留 macOS 全桌面层");
-    record("desktop-close-cleanup", process.platform === "win32" ? { nativeLayer: diag.nativeLayer } : { main: diag.main });
-
-    await applyWindowMode(WINDOW_MODES.TOP);
-    await dashboardWindow.webContents.executeJavaScript(
-      "document.getElementById('layer-button').click(); document.querySelector('[data-mode=floating]').click()",
-    );
+    await dashboardWindow.webContents.executeJavaScript("document.getElementById('floating-button').click()");
     await waitForCondition(() => state.mode === WINDOW_MODES.FLOATING && ballWindow.isVisible());
-    record("floating-ball", { bounds: ballWindow.getBounds() });
+    requireValue(process.platform === "darwin" || circleShapeRects(78).length === 78, "悬浮球圆形区域无效");
+    record("floating-ball", { bounds: ballWindow.getBounds(), shaped: process.platform !== "darwin" });
 
     await ballWindow.webContents.executeJavaScript("document.getElementById('ball-open').click()");
-    await waitForCondition(() => state.mode === WINDOW_MODES.TOP && dashboardWindow.isVisible());
+    await waitForCondition(() => state.mode === WINDOW_MODES.WINDOW && dashboardWindow.isVisible());
     record("floating-ball-restore");
 
     await applyWindowMode(WINDOW_MODES.WINDOW);
@@ -787,7 +745,6 @@ async function runSelfTest(outputPath) {
     record("minimize-button");
 
     await applyWindowMode(WINDOW_MODES.WINDOW);
-    restoreDefaultSize();
     const defaultBounds = dashboardWindow.getBounds();
     const dragRegions = await dashboardWindow.webContents.executeJavaScript(`({
       titlebar: getComputedStyle(document.getElementById('drag-region')).getPropertyValue('-webkit-app-region'),
@@ -810,13 +767,12 @@ async function runSelfTest(outputPath) {
     });
     record("manual-resize", { before: beforeResize, after: dashboardWindow.getBounds() });
 
-    await dashboardWindow.webContents.executeJavaScript("document.getElementById('default-size-button').click()");
-    await waitForCondition(() => {
-      const bounds = dashboardWindow.getBounds();
-      return Math.abs(bounds.width - DEFAULT_WINDOW_SIZE.width) <= 3
-        && Math.abs(bounds.height - DEFAULT_WINDOW_SIZE.height) <= 3;
-    });
-    record("default-size-button", { bounds: dashboardWindow.getBounds() });
+    const removedControls = await dashboardWindow.webContents.executeJavaScript(`({
+      defaultSize: document.getElementById('default-size-button'),
+      desktopMode: document.querySelector('[data-mode=desktop]')
+    })`);
+    requireValue(!removedControls.defaultSize && !removedControls.desktopMode, "已取消的尺寸或桌面固定控件仍然存在");
+    record("removed-default-size-and-desktop-mode");
 
     const screenshot = await dashboardWindow.webContents.capturePage();
     const screenshotPath = path.join(path.dirname(outputPath), "dashboard-renderer.png");
@@ -856,7 +812,7 @@ function registerIpc() {
   });
   ipcMain.handle("dashboard:refresh", () => refreshAll());
   ipcMain.handle("dashboard:refresh-all", () => refreshAll());
-  ipcMain.handle("dashboard:restore-default-size", () => restoreDefaultSize());
+  ipcMain.handle("dashboard:connect-account", () => connectChatGptAccount());
   ipcMain.handle("dashboard:select-thread", async (_event, threadId) => {
     state.control = await controlService.selectThread(threadId);
     broadcast("dashboard:control", state.control);
@@ -897,14 +853,16 @@ function registerIpc() {
     pointerSession = null;
   });
   ipcMain.handle("dashboard:set-mode", (_event, mode) => applyWindowMode(mode));
+  ipcMain.handle("dashboard:toggle-pinned", () => togglePinned());
+  ipcMain.handle("dashboard:toggle-floating", () => toggleFloating());
+  ipcMain.handle("dashboard:toggle-maximized", () => toggleMaximized());
   ipcMain.handle("dashboard:open-chatgpt", () => openChatGpt());
   ipcMain.handle("dashboard:minimize", async () => {
-    if (state.mode === WINDOW_MODES.DESKTOP) await hideDashboard();
-    else dashboardWindow.minimize();
+    dashboardWindow.minimize();
     return diagnostics();
   });
   ipcMain.handle("dashboard:hide", () => hideDashboard());
-  ipcMain.handle("dashboard:restore-from-ball", () => applyWindowMode(WINDOW_MODES.TOP));
+  ipcMain.handle("dashboard:restore-from-ball", () => applyWindowMode(WINDOW_MODES.WINDOW));
   ipcMain.handle("dashboard:get-diagnostics", () => diagnostics());
   ipcMain.handle("dashboard:quit-for-test", () => {
     if (!isTestMode) throw new Error("该操作仅供自动测试使用");
@@ -957,14 +915,6 @@ app.on("before-quit", async () => {
   usageClient?.stop();
   clearTimeout(reconnectTimer);
   clearTimeout(refreshTimer);
-  if (desktopLayerActive) {
-    try {
-      await restoreNativeLayer();
-    } catch {
-      // The process is exiting; Windows will release the parent relationship.
-    }
-  }
-  await refreshDesktop();
 });
 
 app.on("window-all-closed", (event) => event?.preventDefault?.());

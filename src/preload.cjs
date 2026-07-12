@@ -16,7 +16,10 @@ contextBridge.exposeInMainWorld("dashboardApi", {
   hide: () => ipcRenderer.invoke("dashboard:hide"),
   restoreFromBall: () => ipcRenderer.invoke("dashboard:restore-from-ball"),
   getDiagnostics: () => ipcRenderer.invoke("dashboard:get-diagnostics"),
-  restoreDefaultSize: () => ipcRenderer.invoke("dashboard:restore-default-size"),
+  connectAccount: () => ipcRenderer.invoke("dashboard:connect-account"),
+  togglePinned: () => ipcRenderer.invoke("dashboard:toggle-pinned"),
+  toggleFloating: () => ipcRenderer.invoke("dashboard:toggle-floating"),
+  toggleMaximized: () => ipcRenderer.invoke("dashboard:toggle-maximized"),
   refreshAll: () => ipcRenderer.invoke("dashboard:refresh-all"),
   selectThread: (threadId) => ipcRenderer.invoke("dashboard:select-thread", threadId),
   updateControl: (kind, value) => ipcRenderer.invoke("dashboard:update-control", { kind, value }),
@@ -32,4 +35,6 @@ contextBridge.exposeInMainWorld("dashboardApi", {
   onMode: (callback) => subscribe("dashboard:mode", callback),
   onPreferences: (callback) => subscribe("dashboard:preferences", callback),
   onHost: (callback) => subscribe("dashboard:host", callback),
+  onAuth: (callback) => subscribe("dashboard:auth", callback),
+  onWindowState: (callback) => subscribe("dashboard:window-state", callback),
 });

@@ -3,37 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { CodexControlService, readCachedResetCredits, readLatestRateLimits, readLatestTokenUsage } = require("../src/lib/codex-control.cjs");
-
-test("reads the reset-credit count for the signed-in ChatGPT account", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-dashboard-reset-"));
-  const previousHome = process.env.CODEX_HOME;
-  const accountId = "account-under-test";
-  const payload = Buffer.from(JSON.stringify({
-    email: "person@example.com",
-    "https://api.openai.com/auth": { chatgpt_account_id: accountId, chatgpt_plan_type: "plus" },
-  })).toString("base64url");
-  fs.writeFileSync(path.join(directory, "auth.json"), JSON.stringify({ tokens: { id_token: `e30.${payload}.signature` } }));
-  fs.writeFileSync(path.join(directory, ".codex-global-state.json"), JSON.stringify({
-    "electron-persisted-atom-state": {
-      "rate-limit-reset-home-announcement-dismissal-by-account-id": {
-        "another-account": { availableCount: 99 },
-        [accountId]: { availableCount: 3 },
-      },
-    },
-  }));
-  process.env.CODEX_HOME = directory;
-  try {
-    const value = readCachedResetCredits();
-    assert.equal(value.availableCount, 3);
-    assert.equal(value.source, "chatgpt-desktop-cache");
-    assert.ok(value.updatedAt > 0);
-  } finally {
-    if (previousHome === undefined) delete process.env.CODEX_HOME;
-    else process.env.CODEX_HOME = previousHome;
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
-});
+const { CodexControlService, readLatestTokenUsage } = require("../src/lib/codex-control.cjs");
 
 test("reads the latest context token usage from a rollout tail", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-dashboard-context-"));
@@ -50,34 +20,6 @@ test("reads the latest context token usage from a rollout tail", () => {
   assert.equal(value.contextWindow, 1000);
   assert.equal(value.usedPercent, 75);
   assert.equal(value.cachedInputTokens, 600);
-});
-
-test("reads a rate-limit fallback from the latest rollout event", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-dashboard-limits-"));
-  const rollout = path.join(directory, "rollout.jsonl");
-  fs.writeFileSync(
-    rollout,
-    JSON.stringify({
-      timestamp: "2026-07-10T00:00:00Z",
-      type: "event_msg",
-      payload: {
-        type: "token_count",
-        info: {},
-        rate_limits: {
-          limit_id: "codex",
-          primary: { used_percent: 34, window_minutes: 300, resets_at: 1_783_666_675 },
-          secondary: { used_percent: 18, window_minutes: 10_080, resets_at: 1_784_253_475 },
-          credits: { has_credits: false, unlimited: false, balance: "0" },
-          plan_type: "plus",
-        },
-      },
-    }),
-  );
-  const value = readLatestRateLimits(rollout);
-  assert.equal(value.source, "codex-session");
-  assert.equal(value.rateLimits.primary.usedPercent, 34);
-  assert.equal(value.rateLimits.secondary.windowDurationMins, 10_080);
-  assert.equal(value.rateLimits.planType, "plus");
 });
 
 test("routes every dashboard control through the Codex app-server protocol", async () => {

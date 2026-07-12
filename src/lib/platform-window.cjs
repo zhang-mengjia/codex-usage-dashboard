@@ -17,13 +17,6 @@ function setWorkspaceVisibility(window, visible, options = {}) {
   return true;
 }
 
-function applyMacDesktopLayer(window, platform = process.platform) {
-  if (!setWorkspaceVisibility(window, true, { platform, visibleOnFullScreen: false })) return false;
-  window.setAlwaysOnTop(false);
-  window.setSkipTaskbar(true);
-  return true;
-}
-
 function clearMacWindowLayer(window, platform = process.platform) {
   return setWorkspaceVisibility(window, false, { platform });
 }
@@ -38,7 +31,6 @@ function isVisibleOnAllWorkspaces(window, platform = process.platform) {
 }
 
 module.exports = {
-  applyMacDesktopLayer,
   clearMacWindowLayer,
   isVisibleOnAllWorkspaces,
   setMacFloatingLayer,

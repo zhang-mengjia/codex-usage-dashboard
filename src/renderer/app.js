@@ -8,9 +8,7 @@
   const messages = {
     "zh-CN": {
       appTitle: "ChatGPT 控制台", loadingAccount: "正在读取账户…", connecting: "正在连接 Codex…",
-      refreshAll: "刷新全部信息", defaultSize: "恢复默认尺寸", minimize: "最小化", windowLayer: "切换窗口层级", hideTray: "隐藏到托盘", hideMenuBar: "隐藏到菜单栏",
-      windowLayerTitle: "窗口层级", modeTop: "置顶显示", modeTopDesc: "始终位于其他窗口上方", modeDesktop: "固定在桌面", modeDesktopDesc: "应用窗口后方，仍可点击", modeSpaces: "固定在所有桌面", modeSpacesDesc: "跨桌面空间显示，不遮挡其他应用",
-      modeWindow: "普通窗口", modeWindowDesc: "可拖动、缩放和最小化", modeFloating: "悬浮球", modeFloatingDesc: "吸附在屏幕左右边缘",
+      refreshAll: "刷新全部信息", minimize: "最小化", pinWindow: "置顶显示", floatingBall: "切换悬浮球", maximizeWindow: "全屏/恢复窗口", hideTray: "隐藏到托盘", hideMenuBar: "隐藏到菜单栏",
       openChatGpt: "打开 ChatGPT", openHost: "打开 {app}", usageTitle: "Codex 使用额度", usageSubtitle: "与当前 ChatGPT 账户共享", fiveHourLimit: "5 小时使用限制", weeklyLimit: "每周使用限额",
       waitingData: "等待数据", loadingResets: "正在读取重置额度…", contextTitle: "对话上下文", contextSubtitle: "选择最近对话并查看上下文占用", compact: "一键压缩",
       currentThread: "当前对话", loadingThreads: "正在读取最近对话…", noThread: "尚未选择对话", usedContext: "已用上下文", contextWindow: "上下文窗口", cachedInput: "缓存输入",
@@ -20,20 +18,18 @@
       surfaceCodexCaption: "开发与本地智能体", surfaceWorkCaption: "文档、研究与工作流", surfaceChatCaption: "经典 ChatGPT 对话",
       surfaceCodexDesc: "完整监看 Codex 额度、线程、上下文和执行设置。", surfaceWorkDesc: "共享同一 Codex 额度与运行时，以通用工作语义显示高级设置。", surfaceChatDesc: "经典 Chat 由 ChatGPT 单独管理；此处只显示账户和明确标注的 Codex 额度。",
       hostRunning: "{app}{version} · 正在运行", hostWaiting: "等待 ChatGPT/Codex 启动", remaining: "剩余 {value}%", resetUnknown: "重置时间未知", resetAtTime: "将于 {value} 重置", resetAtDate: "将于 {value} 重置",
-      resetCount: "可用 {value} 次", resetCountUnknown: "可用次数 —", resetDetailsUnavailable: "当前有 {value} 次可用重置；ChatGPT 未提供单次详情", noResets: "当前暂无可用重置额度", resetExpiry: "{value} 到期", validUnknown: "有效期未知", noStats: "暂无统计",
+      resetCount: "可用 {value} 次", resetCountUnknown: "可用次数 —", resetDetailsTitle: "使用限额重置", resetDetailsSubtitle: "逐条查看每次重置机会", resetDetailsUnavailable: "当前有 {value} 次可用重置；官方接口未返回单次详情", resetDetailsCapped: "官方接口本次返回 {shown}/{total} 条明细", noResets: "当前暂无可用重置额度", resetExpiry: "{value} 到期", resetGranted: "{value} 获得", validUnknown: "有效期未知", connectAccount: "连接账户", connectingAccount: "等待浏览器授权…", noStats: "暂无统计",
       approval: "审批：{value}", sandbox: "沙箱：{value}", defaultValue: "默认", readOnly: "只读", workspace: "工作区读写", fullAccess: "完全访问",
       effortLow: "低", effortMedium: "中", effortHigh: "高", effortXHigh: "超高", effortMax: "最大", effortUltra: "Ultra（自动协作）",
       workLow: "快速", workMedium: "标准", workHigh: "增强", workXHigh: "超高", workMax: "最大", workUltra: "Ultra（自动协作）", standard: "标准", fast: "快速",
       goalInactive: "为当前对话设置持续目标", goalActive: "{status} · 已用 {tokens} tokens", refreshSuccess: "全部信息已刷新", refreshFailed: "刷新失败",
-      settingSuccess: "设置已应用到当前对话与默认配置", settingFailed: "设置失败", defaultSizeDone: "已恢复默认尺寸", threadSwitchFailed: "切换对话失败",
+      settingSuccess: "设置已应用到当前对话与默认配置", settingFailed: "设置失败", threadSwitchFailed: "切换对话失败",
       goalEnabled: "目标模式已启用", goalDisabled: "目标模式已关闭", goalSwitchFailed: "目标模式切换失败", compactStarted: "上下文压缩已启动", compactFailed: "上下文压缩失败",
-      interfaceFailed: "界面初始化失败", live: "实时更新", warning: "会话额度同步", refreshing: "正在刷新…", error: "暂时无法更新", notSignedIn: "未登录账户",
+      interfaceFailed: "界面初始化失败", live: "实时更新", warning: "实时数据已过期", refreshing: "正在刷新…", error: "暂时无法更新", notSignedIn: "未登录账户",
     },
     en: {
       appTitle: "ChatGPT Console", loadingAccount: "Loading account…", connecting: "Connecting to Codex…",
-      refreshAll: "Refresh all information", defaultSize: "Restore default size", minimize: "Minimize", windowLayer: "Change window layer", hideTray: "Hide to tray", hideMenuBar: "Hide to menu bar",
-      windowLayerTitle: "Window layer", modeTop: "Always on top", modeTopDesc: "Stay above other windows", modeDesktop: "Pin to desktop", modeDesktopDesc: "Behind apps while remaining clickable", modeSpaces: "Show on all Spaces", modeSpacesDesc: "Follow every Space without covering other apps",
-      modeWindow: "Regular window", modeWindowDesc: "Drag, resize, and minimize", modeFloating: "Floating ball", modeFloatingDesc: "Snap to the left or right screen edge",
+      refreshAll: "Refresh all information", minimize: "Minimize", pinWindow: "Always on top", floatingBall: "Toggle floating ball", maximizeWindow: "Maximize/restore window", hideTray: "Hide to tray", hideMenuBar: "Hide to menu bar",
       openChatGpt: "Open ChatGPT", openHost: "Open {app}", usageTitle: "Codex usage", usageSubtitle: "Shared with the current ChatGPT account", fiveHourLimit: "5-hour usage limit", weeklyLimit: "Weekly usage limit",
       waitingData: "Waiting for data", loadingResets: "Loading reset credits…", contextTitle: "Conversation context", contextSubtitle: "Select a recent thread and inspect context usage", compact: "Compact now",
       currentThread: "Current thread", loadingThreads: "Loading recent threads…", noThread: "No thread selected", usedContext: "Context used", contextWindow: "Context window", cachedInput: "Cached input",
@@ -43,14 +39,14 @@
       surfaceCodexCaption: "Development and local agents", surfaceWorkCaption: "Documents, research, and workflows", surfaceChatCaption: "Classic ChatGPT conversations",
       surfaceCodexDesc: "Full Codex quota, thread, context, and execution controls.", surfaceWorkDesc: "Shares the Codex quota and runtime, presented with general-work semantics.", surfaceChatDesc: "Classic Chat is managed separately by ChatGPT; only the account and explicitly labeled Codex quota are shown here.",
       hostRunning: "{app}{version} · running", hostWaiting: "Waiting for ChatGPT/Codex to start", remaining: "{value}% left", resetUnknown: "Reset time unknown", resetAtTime: "Resets at {value}", resetAtDate: "Resets on {value}",
-      resetCount: "{value} available", resetCountUnknown: "Availability —", resetDetailsUnavailable: "{value} resets available; ChatGPT did not provide item details", noResets: "No reset credits available", resetExpiry: "Expires {value}", validUnknown: "Expiry unknown", noStats: "No statistics",
+      resetCount: "{value} available", resetCountUnknown: "Availability —", resetDetailsTitle: "Usage limit resets", resetDetailsSubtitle: "Inspect every individual reset", resetDetailsUnavailable: "{value} resets available; the official API returned no item details", resetDetailsCapped: "The official API returned {shown}/{total} item details", noResets: "No reset credits available", resetExpiry: "Expires {value}", resetGranted: "Granted {value}", validUnknown: "Expiry unknown", connectAccount: "Connect account", connectingAccount: "Waiting for browser authorization…", noStats: "No statistics",
       approval: "Approval: {value}", sandbox: "Sandbox: {value}", defaultValue: "Default", readOnly: "Read only", workspace: "Workspace read/write", fullAccess: "Full access",
       effortLow: "Low", effortMedium: "Medium", effortHigh: "High", effortXHigh: "Extra high", effortMax: "Maximum", effortUltra: "Ultra (auto collaboration)",
       workLow: "Faster", workMedium: "Standard", workHigh: "Extended", workXHigh: "High", workMax: "Maximum", workUltra: "Ultra", standard: "Standard", fast: "Fast",
       goalInactive: "Set a persistent outcome for this thread", goalActive: "{status} · {tokens} tokens used", refreshSuccess: "All information refreshed", refreshFailed: "Refresh failed",
-      settingSuccess: "Applied to the current thread and default configuration", settingFailed: "Setting failed", defaultSizeDone: "Default size restored", threadSwitchFailed: "Could not switch thread",
+      settingSuccess: "Applied to the current thread and default configuration", settingFailed: "Setting failed", threadSwitchFailed: "Could not switch thread",
       goalEnabled: "Goal mode enabled", goalDisabled: "Goal mode disabled", goalSwitchFailed: "Could not switch goal mode", compactStarted: "Context compaction started", compactFailed: "Context compaction failed",
-      interfaceFailed: "Interface initialization failed", live: "Live", warning: "Synced from session", refreshing: "Refreshing…", error: "Update unavailable", notSignedIn: "Not signed in",
+      interfaceFailed: "Interface initialization failed", live: "Live", warning: "Live data is stale", refreshing: "Refreshing…", error: "Update unavailable", notSignedIn: "Not signed in",
     },
   };
 
@@ -59,6 +55,8 @@
   let host = { detected: false };
   let status = { state: "connecting", message: "正在连接 Codex…" };
   let currentMode = "window";
+  let auth = { state: "checking" };
+  let windowState = { alwaysOnTop: false, maximized: false };
   let platform = "win32";
   let preferences = { locale: "zh-CN", surface: "codex" };
   let toastTimer = null;
@@ -66,7 +64,7 @@
   const byId = (id) => document.getElementById(id);
   const tr = (key, values = {}) => {
     const platformKey = platform === "darwin"
-      ? ({ hideTray: "hideMenuBar", modeDesktop: "modeSpaces", modeDesktopDesc: "modeSpacesDesc" })[key] || key
+      ? ({ hideTray: "hideMenuBar" })[key] || key
       : key;
     let value = messages[preferences.locale]?.[platformKey] ?? messages["zh-CN"][platformKey] ?? platformKey;
     for (const [name, replacement] of Object.entries(values)) value = value.replace(`{${name}}`, String(replacement));
@@ -137,16 +135,47 @@
     else if (!items.length && Number.isFinite(Number(count)) && Number(count) > 0) resetList.textContent = tr("resetDetailsUnavailable", { value: count });
     else if (!items.length) resetList.textContent = tr("noResets");
     else {
-      resetList.replaceChildren(...items.map((item) => {
-        const chip = document.createElement("span");
-        chip.className = "reset-chip";
+      const rows = items.map((item) => {
+        const row = document.createElement("div");
+        row.className = "reset-item";
+        const copy = document.createElement("div");
+        const title = document.createElement("strong");
+        const description = document.createElement("span");
+        const meta = document.createElement("small");
         const expiry = item.expiresAt
           ? tr("resetExpiry", { value: new Date(item.expiresAt * 1000).toLocaleDateString(preferences.locale, { month: "short", day: "numeric" }) })
           : tr("validUnknown");
-        chip.textContent = `${item.title} · ${expiry}`;
-        return chip;
-      }));
+        title.textContent = item.title;
+        description.textContent = item.description || (item.grantedAt ? tr("resetGranted", { value: new Date(item.grantedAt * 1000).toLocaleDateString(preferences.locale, { month: "short", day: "numeric" }) }) : "");
+        meta.textContent = expiry;
+        copy.append(title, description);
+        row.append(copy, meta);
+        return row;
+      });
+      if (Number(count) > rows.length) {
+        const note = document.createElement("div");
+        note.className = "reset-empty";
+        note.textContent = tr("resetDetailsCapped", { shown: rows.length, total: count });
+        rows.push(note);
+      }
+      resetList.replaceChildren(...rows);
     }
+    resetList.classList.toggle("reset-empty", !items.length);
+  }
+
+  function renderAuth() {
+    if (isBall) return;
+    const button = byId("connect-account-button");
+    button.hidden = auth.state === "signedIn";
+    button.disabled = auth.state === "pending" || auth.state === "checking";
+    button.textContent = tr(auth.state === "pending" ? "connectingAccount" : "connectAccount");
+  }
+
+  function renderWindowState() {
+    if (isBall) return;
+    byId("pin-button").classList.toggle("active", Boolean(windowState.alwaysOnTop));
+    byId("floating-button").classList.toggle("active", currentMode === "floating");
+    document.querySelector(".dashboard-panel").classList.toggle("maximized", Boolean(windowState.maximized));
   }
 
   function replaceOptions(select, options, selectedValue) {
@@ -263,7 +292,7 @@
 
   function renderMode() {
     if (isBall) return;
-    for (const button of document.querySelectorAll("[data-mode]")) button.classList.toggle("active", button.dataset.mode === currentMode);
+    renderWindowState();
   }
 
   function applyLocale() {
@@ -278,6 +307,7 @@
     renderControl();
     renderStatus();
     renderSurface();
+    renderAuth();
   }
 
   async function refreshEverything() {
@@ -332,6 +362,8 @@
     control = initial.control;
     host = initial.host || host;
     status = initial.status;
+    auth = initial.auth || auth;
+    windowState = initial.window || windowState;
     currentMode = initial.mode;
     platform = initial.platform || platform;
     preferences = initial.preferences || preferences;
@@ -345,31 +377,17 @@
   window.dashboardApi.onMode((value) => { currentMode = value; renderMode(); });
   window.dashboardApi.onHost((value) => { host = value; renderSurface(); });
   window.dashboardApi.onPreferences((value) => { preferences = value; applyLocale(); });
+  window.dashboardApi.onAuth((value) => { auth = value; renderAuth(); });
+  window.dashboardApi.onWindowState((value) => { windowState = value; renderWindowState(); });
 
   if (isBall) {
     byId("ball-open").addEventListener("click", () => window.dashboardApi.restoreFromBall());
   } else {
     for (const handle of document.querySelectorAll("[data-resize]")) bindWindowPointer(handle, "resize", handle.dataset.resize);
 
-    const menu = byId("layer-menu");
-    const layerButton = byId("layer-button");
-    layerButton.addEventListener("click", () => {
-      menu.hidden = !menu.hidden;
-      layerButton.setAttribute("aria-expanded", String(!menu.hidden));
-    });
-    document.addEventListener("pointerdown", (event) => {
-      if (!menu.hidden && !menu.contains(event.target) && !layerButton.contains(event.target)) {
-        menu.hidden = true;
-        layerButton.setAttribute("aria-expanded", "false");
-      }
-    });
-    for (const button of document.querySelectorAll("[data-mode]")) {
-      button.addEventListener("click", async () => {
-        menu.hidden = true;
-        layerButton.setAttribute("aria-expanded", "false");
-        await window.dashboardApi.setMode(button.dataset.mode);
-      });
-    }
+    byId("pin-button").addEventListener("click", () => window.dashboardApi.togglePinned());
+    byId("floating-button").addEventListener("click", () => window.dashboardApi.toggleFloating());
+    byId("layer-button").addEventListener("click", () => window.dashboardApi.toggleMaximized());
     for (const button of document.querySelectorAll("[data-surface]")) {
       button.addEventListener("click", async () => {
         preferences = await window.dashboardApi.setPreferences({ surface: button.dataset.surface });
@@ -385,7 +403,16 @@
     byId("refresh-button").addEventListener("click", refreshEverything);
     byId("status-button").addEventListener("click", refreshEverything);
     byId("footer-refresh").addEventListener("click", refreshEverything);
-    byId("default-size-button").addEventListener("click", async () => { await window.dashboardApi.restoreDefaultSize(); showToast(tr("defaultSizeDone")); });
+    byId("connect-account-button").addEventListener("click", async () => {
+      try { auth = await window.dashboardApi.connectAccount(); renderAuth(); }
+      catch (error) { showToast(error.message || tr("refreshFailed"), true); }
+    });
+    byId("reset-details-toggle").addEventListener("click", () => {
+      const button = byId("reset-details-toggle");
+      const expanded = button.getAttribute("aria-expanded") !== "false";
+      button.setAttribute("aria-expanded", String(!expanded));
+      byId("reset-list").hidden = expanded;
+    });
     byId("minimize-button").addEventListener("click", () => window.dashboardApi.minimize());
     byId("close-button").addEventListener("click", () => window.dashboardApi.hide());
 

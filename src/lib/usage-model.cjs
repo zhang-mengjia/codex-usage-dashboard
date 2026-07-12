@@ -27,6 +27,7 @@ function normalizeRateLimits(payload, now = Date.now()) {
         title: credit.title || "Full reset (Weekly + 5 hr)",
         description: credit.description || "可重置本周与 5 小时使用额度",
         status: credit.status || "unknown",
+        resetType: credit.resetType || "unknown",
         grantedAt: Number(credit.grantedAt) || null,
         expiresAt: Number(credit.expiresAt) || null,
       }))
@@ -48,6 +49,7 @@ function normalizeRateLimits(payload, now = Date.now()) {
     resetCredits: {
       availableCount: hasResetCount ? Math.max(0, Number(resetSummary.availableCount)) : null,
       items: resetCredits,
+      detailsAvailable: Array.isArray(resetSummary.credits),
       source: resetSummary.source || null,
       updatedAt: Number(resetSummary.updatedAt) || null,
     },

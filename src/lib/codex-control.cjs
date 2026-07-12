@@ -1,47 +1,4 @@
 const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
-
-function readCachedAccount() {
-  try {
-    const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
-    const auth = JSON.parse(fs.readFileSync(path.join(codexHome, "auth.json"), "utf8"));
-    const idToken = auth?.tokens?.id_token;
-    if (!idToken) return null;
-    const payload = JSON.parse(Buffer.from(idToken.split(".")[1], "base64url").toString("utf8"));
-    const authClaims = payload["https://api.openai.com/auth"] || {};
-    if (!payload.email) return null;
-    return {
-      type: "chatgpt",
-      email: payload.email,
-      planType: authClaims.chatgpt_plan_type || null,
-      accountId: authClaims.chatgpt_account_id || null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function readCachedResetCredits() {
-  try {
-    const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
-    const statePath = path.join(codexHome, ".codex-global-state.json");
-    const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
-    const records = state?.["electron-persisted-atom-state"]?.["rate-limit-reset-home-announcement-dismissal-by-account-id"];
-    if (!records || typeof records !== "object") return null;
-    const accountId = readCachedAccount()?.accountId;
-    const record = (accountId && records[accountId]) || Object.values(records)[0];
-    if (!record || !Number.isFinite(Number(record.availableCount))) return null;
-    return {
-      availableCount: Math.max(0, Number(record.availableCount)),
-      credits: [],
-      source: "chatgpt-desktop-cache",
-      updatedAt: fs.statSync(statePath).mtimeMs,
-    };
-  } catch {
-    return null;
-  }
-}
 
 function normalizeRolloutPath(filePath) {
   return String(filePath || "").replace(/^\\\\\?\\/, "");
@@ -87,57 +44,6 @@ function readLatestTokenUsage(filePath, maxBytes = 16 * 1024 * 1024) {
   return null;
 }
 
-function readLatestRateLimits(filePath, maxBytes = 16 * 1024 * 1024) {
-  const normalized = normalizeRolloutPath(filePath);
-  if (!normalized || !fs.existsSync(normalized)) return null;
-  const stat = fs.statSync(normalized);
-  const length = Math.min(stat.size, maxBytes);
-  const buffer = Buffer.alloc(length);
-  const descriptor = fs.openSync(normalized, "r");
-  try {
-    fs.readSync(descriptor, buffer, 0, length, stat.size - length);
-  } finally {
-    fs.closeSync(descriptor);
-  }
-
-  const lines = buffer.toString("utf8").split(/\r?\n/);
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const line = lines[index];
-    if (!line.includes('"type":"token_count"') || !line.includes('"rate_limits"')) continue;
-    try {
-      const value = JSON.parse(line);
-      const snapshot = value?.payload?.rate_limits;
-      if (!snapshot) continue;
-      const normalizeWindow = (window) => window
-        ? {
-            usedPercent: Number(window.used_percent) || 0,
-            windowDurationMins: Number(window.window_minutes) || 0,
-            resetsAt: Number(window.resets_at) || null,
-          }
-        : null;
-      return {
-        source: "codex-session",
-        updatedAt: value.timestamp ? Date.parse(value.timestamp) : stat.mtimeMs,
-        rateLimits: {
-          limitId: snapshot.limit_id || "codex",
-          planType: snapshot.plan_type || "unknown",
-          rateLimitReachedType: snapshot.rate_limit_reached_type || null,
-          primary: normalizeWindow(snapshot.primary),
-          secondary: normalizeWindow(snapshot.secondary),
-          credits: {
-            hasCredits: Boolean(snapshot.credits?.has_credits),
-            unlimited: Boolean(snapshot.credits?.unlimited),
-            balance: snapshot.credits?.balance ?? null,
-          },
-        },
-      };
-    } catch {
-      // Continue scanning older token-count events.
-    }
-  }
-  return null;
-}
-
 function normalizeThread(thread) {
   return {
     id: thread.id,
@@ -161,9 +67,7 @@ class CodexControlService {
 
   async refresh() {
     await this.client.start();
-    const [accountResponse, modelsResponse, configResponse, modesResponse, threadsResponse] = await Promise.all([
-      this.client.request("account/read", { refreshToken: false }),
-      this.client.request("model/list", { limit: 100, includeHidden: false }),
+    const [configResponse, modesResponse, threadsResponse] = await Promise.all([
       this.client.request("config/read", { includeLayers: false }),
       this.client.request("collaborationMode/list", {}),
       this.client.request("thread/list", {
@@ -173,6 +77,10 @@ class CodexControlService {
         archived: false,
         useStateDbOnly: true,
       }),
+    ]);
+    const [accountResponse, modelsResponse] = await Promise.all([
+      this.client.request("account/read", { refreshToken: false }).catch(() => ({ account: null })),
+      this.client.request("model/list", { limit: 100, includeHidden: false }).catch(() => ({ data: [] })),
     ]);
 
     const threads = (threadsResponse.data || []).map(normalizeThread);
@@ -214,7 +122,7 @@ class CodexControlService {
     }));
 
     const config = configResponse.config || {};
-    const account = accountResponse.account || readCachedAccount();
+    const account = accountResponse.account || null;
     this.state = {
       account: account
         ? {
@@ -332,8 +240,5 @@ module.exports = {
   CodexControlService,
   normalizeRolloutPath,
   normalizeThread,
-  readCachedAccount,
-  readCachedResetCredits,
-  readLatestRateLimits,
   readLatestTokenUsage,
 };
