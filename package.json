@@ -1,0 +1,91 @@
+{
+  "name": "codex-usage-dashboard",
+  "version": "1.1.1",
+  "author": "MENGJIA ZHANG <apolloz.neuro@gmail.com>",
+  "license": "MIT",
+  "description": "A Windows desktop dashboard for live Codex usage limits.",
+  "homepage": "https://github.com/zhang-mengjia/codex-usage-dashboard#readme",
+  "bugs": {
+    "url": "https://github.com/zhang-mengjia/codex-usage-dashboard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhang-mengjia/codex-usage-dashboard.git"
+  },
+  "keywords": [
+    "codex",
+    "chatgpt",
+    "usage-dashboard",
+    "electron",
+    "windows"
+  ],
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "test:live": "node --test tests/live/*.test.cjs",
+    "pack:dir": "npm test && electron-builder --dir --win --x64 --publish=never",
+    "pack": "npm test && electron-builder --win nsis portable --x64 --publish=never",
+    "smoke": "node scripts/smoke-self-test.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "build": {
+    "appId": "com.apollo.codexusagedashboard",
+    "productName": "Codex 使用量",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**",
+      "resources/icon.png",
+      "LICENSE",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/windows-layer.ps1",
+        "to": "windows-layer.ps1"
+      },
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "Codex-Usage-Dashboard-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Codex 使用量",
+      "license": "LICENSE"
+    },
+    "portable": {
+      "artifactName": "Codex-Usage-Dashboard-Portable-${version}-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "43.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

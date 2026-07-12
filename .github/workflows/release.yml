@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run pack
+      - name: Write SHA-256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release/*.exe | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content -Encoding ascii release/SHA256SUMS.txt
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if (gh release view $tag 2>$null) {
+            gh release upload $tag release/*.exe release/SHA256SUMS.txt --clobber
+          } else {
+            gh release create $tag release/*.exe release/SHA256SUMS.txt --title "Codex Usage Dashboard $tag" --generate-notes
+          }

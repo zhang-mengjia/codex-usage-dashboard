@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'" />
+    <title>ChatGPT 控制台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="dashboard" class="dashboard-shell" aria-label="ChatGPT 桌面控制台">
+      <section class="dashboard-panel">
+        <div class="resize-handle resize-n" data-resize="n"></div>
+        <div class="resize-handle resize-ne" data-resize="ne"></div>
+        <div class="resize-handle resize-e" data-resize="e"></div>
+        <div class="resize-handle resize-se" data-resize="se"></div>
+        <div class="resize-handle resize-s" data-resize="s"></div>
+        <div class="resize-handle resize-sw" data-resize="sw"></div>
+        <div class="resize-handle resize-w" data-resize="w"></div>
+        <div class="resize-handle resize-nw" data-resize="nw"></div>
+
+        <header id="drag-region" class="titlebar">
+          <div class="identity-block">
+            <div class="title-line">
+              <h1 data-i18n="appTitle">ChatGPT 控制台</h1>
+              <span id="plan-badge" class="plan-badge">Codex</span>
+            </div>
+            <div class="account-line">
+              <span id="account-avatar" class="account-avatar">C</span>
+              <span id="account-email" class="account-email" data-i18n="loadingAccount">正在读取账户…</span>
+              <span class="account-separator">·</span>
+              <button id="status-button" class="status-button interactive" type="button" data-i18n-aria="refreshAll">
+                <span id="status-dot" class="status-dot connecting"></span>
+                <span id="status-text" data-i18n="connecting">正在连接 Codex…</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="window-controls interactive">
+            <button id="language-button" class="language-button" type="button" aria-label="Switch language" title="Switch language">EN</button>
+            <button id="refresh-button" class="icon-button" type="button" data-i18n-aria="refreshAll" data-i18n-title="refreshAll">
+              <svg viewBox="0 0 20 20"><path d="M16 9a6 6 0 0 0-10.7-3.7L3.5 7M4 3.5V7h3.5M4 11a6 6 0 0 0 10.7 3.7l1.8-1.7M16 16.5V13h-3.5" /></svg>
+            </button>
+            <button id="default-size-button" class="icon-button" type="button" data-i18n-aria="defaultSize" data-i18n-title="defaultSize">
+              <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /><path d="M7 3 3 7M13 3l4 4M17 13l-4 4M3 13l4 4" /></svg>
+            </button>
+            <button id="minimize-button" class="icon-button" type="button" data-i18n-aria="minimize" data-i18n-title="minimize">
+              <svg viewBox="0 0 20 20"><path d="M4 14h12" /></svg>
+            </button>
+            <button id="layer-button" class="icon-button" type="button" aria-expanded="false" data-i18n-aria="windowLayer" data-i18n-title="windowLayer">
+              <svg viewBox="0 0 20 20"><rect x="3.5" y="3.5" width="9" height="9" rx="2" /><path d="M7.5 12.5v1A2.5 2.5 0 0 0 10 16h3.5A2.5 2.5 0 0 0 16 13.5V10A2.5 2.5 0 0 0 13.5 7.5h-1" /></svg>
+            </button>
+            <button id="close-button" class="icon-button" type="button" data-i18n-aria="hideTray" data-i18n-title="hideTray">
+              <svg viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg>
+            </button>
+          </div>
+
+          <div id="layer-menu" class="layer-menu interactive" hidden>
+            <div class="layer-menu-title" data-i18n="windowLayerTitle">窗口层级</div>
+            <button type="button" data-mode="top"><span class="mode-icon">⌃</span><span><strong data-i18n="modeTop">置顶显示</strong><small data-i18n="modeTopDesc">始终位于其他窗口上方</small></span><span class="mode-check">✓</span></button>
+            <button type="button" data-mode="desktop"><span class="mode-icon">▣</span><span><strong data-i18n="modeDesktop">固定在桌面</strong><small data-i18n="modeDesktopDesc">应用窗口后方，仍可点击</small></span><span class="mode-check">✓</span></button>
+            <button type="button" data-mode="window"><span class="mode-icon">▢</span><span><strong data-i18n="modeWindow">普通窗口</strong><small data-i18n="modeWindowDesc">可拖动、缩放和最小化</small></span><span class="mode-check">✓</span></button>
+            <button type="button" data-mode="floating"><span class="mode-icon">●</span><span><strong data-i18n="modeFloating">悬浮球</strong><small data-i18n="modeFloatingDesc">吸附在屏幕左右边缘</small></span><span class="mode-check">✓</span></button>
+          </div>
+        </header>
+
+        <nav class="surface-bar interactive" aria-label="ChatGPT surface">
+          <div class="surface-tabs" role="tablist">
+            <button type="button" role="tab" data-surface="codex">Codex</button>
+            <button type="button" role="tab" data-surface="work">Work</button>
+            <button type="button" role="tab" data-surface="chat">Chat</button>
+          </div>
+          <span id="surface-caption" class="surface-caption"></span>
+        </nav>
+
+        <div class="content-scroll">
+          <section class="surface-notice" aria-live="polite">
+            <span id="surface-icon" class="surface-icon">C</span>
+            <div><strong id="surface-title">Codex</strong><span id="surface-description"></span><small id="host-meta"></small></div>
+            <button id="open-host-button" class="secondary-action interactive" type="button" data-i18n="openChatGpt">打开 ChatGPT</button>
+          </section>
+
+          <section class="card usage-card" aria-label="Codex usage">
+            <div class="section-heading">
+              <div><h2 data-i18n="usageTitle">Codex 使用额度</h2><p data-i18n="usageSubtitle">与当前 ChatGPT 账户共享</p></div>
+              <span id="reset-count" class="available-badge">重置 0 次</span>
+            </div>
+            <div class="limit-row">
+              <div class="limit-copy"><strong data-i18n="fiveHourLimit">5 小时使用限制</strong><span id="primary-reset" data-i18n="waitingData">等待数据</span></div>
+              <div class="usage-meter"><div class="track"><div id="primary-bar" class="bar"></div></div><span id="primary-remaining">--</span></div>
+            </div>
+            <div class="limit-row">
+              <div class="limit-copy"><strong data-i18n="weeklyLimit">每周使用限额</strong><span id="secondary-reset" data-i18n="waitingData">等待数据</span></div>
+              <div class="usage-meter"><div class="track"><div id="secondary-bar" class="bar"></div></div><span id="secondary-remaining">--</span></div>
+            </div>
+            <div id="reset-list" class="reset-strip" data-i18n="loadingResets">正在读取重置额度…</div>
+          </section>
+
+          <section class="card context-card" data-codex-controls aria-label="Conversation context">
+            <div class="section-heading context-heading">
+              <div><h2 data-i18n="contextTitle">对话上下文</h2><p data-i18n="contextSubtitle">选择最近对话并查看上下文占用</p></div>
+              <button id="compact-button" class="primary-action interactive" type="button">
+                <svg viewBox="0 0 20 20"><path d="M4 7h12M6 4h8M6 10h8M8 13h4M9 16h2" /></svg>
+                <span data-i18n="compact">一键压缩</span>
+              </button>
+            </div>
+            <label class="field-label" for="thread-select" data-i18n="currentThread">当前对话</label>
+            <select id="thread-select" class="control-select wide interactive"><option data-i18n="loadingThreads">正在读取最近对话…</option></select>
+            <div class="context-summary">
+              <div class="context-title-row"><strong id="context-name" data-i18n="noThread">尚未选择对话</strong><span id="context-percent">--</span></div>
+              <div class="track context-track"><div id="context-bar" class="bar context-bar"></div></div>
+              <div class="context-metrics">
+                <span><small data-i18n="usedContext">已用上下文</small><strong id="context-used">--</strong></span>
+                <span><small data-i18n="contextWindow">上下文窗口</small><strong id="context-window">--</strong></span>
+                <span><small data-i18n="cachedInput">缓存输入</small><strong id="context-cached">--</strong></span>
+              </div>
+              <div id="context-cwd" class="context-path">--</div>
+            </div>
+          </section>
+
+          <section class="card settings-card" data-codex-controls aria-label="Runtime configuration">
+            <div class="section-heading">
+              <div><h2 data-i18n="runtimeTitle">运行配置</h2><p data-i18n="runtimeSubtitle">同步到所选对话，并保存为全局默认</p></div>
+              <span class="scope-badge" data-i18n="scopeBadge">当前对话 + 默认</span>
+            </div>
+            <div class="settings-grid">
+              <label class="control-field"><span data-i18n="model">模型</span><select id="model-select" class="control-select interactive"></select></label>
+              <label class="control-field"><span id="reasoning-label" data-i18n="reasoning">推理强度</span><select id="reasoning-select" class="control-select interactive"></select></label>
+              <label class="control-field"><span data-i18n="speed">速度</span><select id="speed-select" class="control-select interactive"></select></label>
+              <label class="control-field"><span data-i18n="permission">权限</span><select id="permission-select" class="control-select interactive"></select></label>
+            </div>
+            <div class="setting-footnote"><span id="approval-summary">审批：-</span><span id="sandbox-summary">沙箱：-</span></div>
+          </section>
+
+          <section class="card modes-card" data-codex-controls aria-label="Work modes">
+            <div class="section-heading"><div><h2 data-i18n="workModes">工作模式</h2><p data-i18n="modesSubtitle">对当前选择的对话立即生效</p></div></div>
+            <div class="mode-setting-row">
+              <div><strong data-i18n="planMode">计划模式</strong><span data-i18n="planDesc">先澄清与规划，再进入执行</span></div>
+              <button id="plan-toggle" class="switch-button interactive" type="button" role="switch" aria-checked="false"><span></span></button>
+            </div>
+            <div class="mode-setting-row goal-row">
+              <div class="goal-copy"><strong data-i18n="goalMode">目标模式</strong><span id="goal-status" data-i18n="goalDesc">为当前对话设置持续目标</span></div>
+              <button id="goal-toggle" class="switch-button interactive" type="button" role="switch" aria-checked="false"><span></span></button>
+            </div>
+            <input id="goal-objective" class="goal-input interactive" type="text" maxlength="240" data-i18n-placeholder="goalPlaceholder" placeholder="输入目标内容；启用时将作为当前对话目标" />
+          </section>
+
+          <div class="bottom-status"><span id="settings-effect" data-i18n="settingsEffect">设置切换将在当前对话的下一次发送时生效</span><button id="footer-refresh" class="text-button interactive" type="button" data-i18n="refresh">刷新</button></div>
+        </div>
+
+        <div id="toast" class="toast" role="status" hidden></div>
+      </section>
+    </main>
+
+    <main id="floating-ball" class="floating-shell" aria-label="Codex usage floating ball" hidden>
+      <div class="ball-grip" data-i18n-title="dragBall" title="拖动悬浮球"></div>
+      <button id="ball-open" class="ball-open interactive" type="button" data-i18n-aria="openConsole">
+        <span id="ball-percent" class="ball-percent">--</span>
+        <span class="ball-label" data-i18n="fiveHourRemaining">5h 剩余</span>
+        <span id="ball-status" class="ball-status connecting"></span>
+      </button>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
