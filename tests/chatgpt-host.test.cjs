@@ -16,7 +16,10 @@ test("recognizes the integrated ChatGPT app and selects its newest package", () 
 });
 
 test("reads the integrated ChatGPT package version through PowerShell", async () => {
-  const value = await queryIntegratedChatGptPackage((_file, _args, _options, callback) => callback(null, "26.707.3748.0\r\n"));
+  const value = await queryIntegratedChatGptPackage(
+    (_file, _args, _options, callback) => callback(null, "26.707.3748.0\r\n"),
+    { platform: "win32" },
+  );
   assert.equal(value.appName, "ChatGPT");
   assert.equal(value.version, "26.707.3748.0");
   assert.deepEqual(value.surfaces, ["codex", "work", "chat"]);
