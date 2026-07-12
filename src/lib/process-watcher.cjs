@@ -1,9 +1,17 @@
 const { EventEmitter } = require("node:events");
 const { execFile } = require("node:child_process");
+const path = require("node:path");
 
-// The current integrated desktop app runs as ChatGPT.exe while still hosting
-// Codex helper processes, so prefer the product process over its helper.
-const DEFAULT_HOST_PROCESSES = ["chatgpt.exe", "codex.exe"];
+const HOST_PROCESSES = Object.freeze({
+  win32: ["chatgpt.exe", "codex.exe"],
+  darwin: ["chatgpt", "codex"],
+});
+
+function defaultHostProcesses(platform = process.platform) {
+  return HOST_PROCESSES[platform] || HOST_PROCESSES.darwin;
+}
+
+const DEFAULT_HOST_PROCESSES = defaultHostProcesses();
 
 function parseTasklistCsv(output) {
   const names = [];
@@ -28,12 +36,39 @@ function listWindowsProcesses(exec = execFile) {
   });
 }
 
+function parsePsCommands(output) {
+  return String(output)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((command) => path.posix.basename(command).toLowerCase());
+}
+
+function listMacProcesses(exec = execFile) {
+  return new Promise((resolve, reject) => {
+    exec(
+      "/bin/ps",
+      ["-axo", "comm="],
+      { encoding: "utf8" },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(parsePsCommands(stdout));
+      },
+    );
+  });
+}
+
+function listHostProcesses(platform = process.platform, exec = execFile) {
+  return platform === "win32" ? listWindowsProcesses(exec) : listMacProcesses(exec);
+}
+
 class HostProcessWatcher extends EventEmitter {
   constructor(options = {}) {
     super();
-    this.names = (options.names || DEFAULT_HOST_PROCESSES).map((name) => name.toLowerCase());
+    this.platform = options.platform || process.platform;
+    this.names = (options.names || defaultHostProcesses(this.platform)).map((name) => name.toLowerCase());
     this.intervalMs = options.intervalMs || 4_000;
-    this.listProcesses = options.listProcesses || listWindowsProcesses;
+    this.listProcesses = options.listProcesses || (() => listHostProcesses(this.platform, options.exec));
     this.timer = null;
     this.running = false;
     this.lastDetected = null;
@@ -73,6 +108,10 @@ class HostProcessWatcher extends EventEmitter {
 module.exports = {
   DEFAULT_HOST_PROCESSES,
   HostProcessWatcher,
+  defaultHostProcesses,
+  listHostProcesses,
+  listMacProcesses,
   listWindowsProcesses,
+  parsePsCommands,
   parseTasklistCsv,
 };

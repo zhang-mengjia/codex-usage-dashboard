@@ -1,9 +1,9 @@
 {
   "name": "codex-usage-dashboard",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "author": "MENGJIA ZHANG <apolloz.neuro@gmail.com>",
   "license": "MIT",
-  "description": "A Windows desktop dashboard for live Codex usage limits.",
+  "description": "A Windows and macOS desktop dashboard for live Codex usage limits.",
   "homepage": "https://github.com/zhang-mengjia/codex-usage-dashboard#readme",
   "bugs": {
     "url": "https://github.com/zhang-mengjia/codex-usage-dashboard/issues"
@@ -17,17 +17,20 @@
     "chatgpt",
     "usage-dashboard",
     "electron",
-    "windows"
+    "windows",
+    "macos"
   ],
-  "os": ["win32"],
-  "cpu": ["x64"],
+  "os": ["win32", "darwin"],
+  "cpu": ["x64", "arm64"],
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
     "test:live": "node --test tests/live/*.test.cjs",
-    "pack:dir": "npm test && electron-builder --dir --win --x64 --publish=never",
-    "pack": "npm test && electron-builder --win nsis portable --x64 --publish=never",
+    "pack:dir": "npm test && electron-builder --dir --publish=never",
+    "pack": "npm test && electron-builder --publish=never",
+    "pack:win": "npm test && electron-builder --win nsis portable --x64 --publish=never",
+    "pack:mac": "npm test && electron-builder --mac dmg zip --universal --publish=never",
     "smoke": "node scripts/smoke-self-test.cjs"
   },
   "engines": {
@@ -49,16 +52,18 @@
     ],
     "extraResources": [
       {
-        "from": "resources/windows-layer.ps1",
-        "to": "windows-layer.ps1"
-      },
-      {
         "from": "resources/icon.png",
         "to": "icon.png"
       }
     ],
     "win": {
       "icon": "resources/icon.ico",
+      "extraResources": [
+        {
+          "from": "resources/windows-layer.ps1",
+          "to": "windows-layer.ps1"
+        }
+      ],
       "target": [
         {
           "target": "nsis",
@@ -67,6 +72,22 @@
         {
           "target": "portable",
           "arch": ["x64"]
+        }
+      ]
+    },
+    "mac": {
+      "icon": "resources/icon-mac.png",
+      "category": "public.app-category.utilities",
+      "minimumSystemVersion": "12.0.0",
+      "artifactName": "Codex-Usage-Dashboard-${version}-macOS-${arch}.${ext}",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["universal"]
         }
       ]
     },

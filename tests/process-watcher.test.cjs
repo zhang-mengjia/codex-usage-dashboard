@@ -1,6 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { HostProcessWatcher, parseTasklistCsv } = require("../src/lib/process-watcher.cjs");
+const {
+  HostProcessWatcher,
+  defaultHostProcesses,
+  parsePsCommands,
+  parseTasklistCsv,
+} = require("../src/lib/process-watcher.cjs");
 
 test("parses localized tasklist CSV by executable name", () => {
   const output = '"explorer.exe","123","Console","1","45,000 K"\r\n"Codex.exe","456","Console","1","230,000 K"\r\n';
@@ -21,4 +26,11 @@ test("emits a transition when Codex starts", async () => {
     { detected: false, processName: null },
     { detected: true, processName: "codex.exe" },
   ]);
+});
+
+test("parses macOS process commands and selects Mac host names", () => {
+  const output = "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT\n/Applications/Codex.app/Contents/MacOS/Codex\n/usr/bin/login\n";
+  assert.deepEqual(parsePsCommands(output), ["chatgpt", "codex", "login"]);
+  assert.deepEqual(defaultHostProcesses("darwin"), ["chatgpt", "codex"]);
+  assert.deepEqual(defaultHostProcesses("win32"), ["chatgpt.exe", "codex.exe"]);
 });

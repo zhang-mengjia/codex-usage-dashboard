@@ -14,7 +14,7 @@ Thanks for helping improve Codex Usage Dashboard.
 
 Requirements:
 
-- Windows 10/11 x64
+- Windows 10/11 x64 or macOS 12+
 - Node.js 22+
 - A signed-in ChatGPT/Codex installation for live integration tests
 
@@ -25,6 +25,8 @@ npm start
 ```
 
 `npm test` is self-contained. `npm run test:live` talks to the local ChatGPT/Codex environment and may fail when the official app is not installed, signed in, or compatible.
+
+Use `npm run pack:win` on Windows and `npm run pack:mac` on macOS. macOS release builds are universal (`arm64` + `x86_64`).
 
 ## Pull requests
 

@@ -14,12 +14,18 @@ const { CodexAppServerClient } = require("./lib/codex-app-server.cjs");
 const { CodexControlService, readCachedResetCredits, readLatestRateLimits } = require("./lib/codex-control.cjs");
 const { detectIntegratedChatGpt, queryIntegratedChatGptPackage } = require("./lib/chatgpt-host.cjs");
 const { HostProcessWatcher } = require("./lib/process-watcher.cjs");
+const {
+  applyMacDesktopLayer,
+  clearMacWindowLayer,
+  isVisibleOnAllWorkspaces,
+  setMacFloatingLayer,
+} = require("./lib/platform-window.cjs");
 const { normalizeRateLimits } = require("./lib/usage-model.cjs");
 const { WINDOW_MODES, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
 const { invokeWindowsLayer, nativeWindowHandle } = require("./lib/windows-layer.cjs");
 
 const argv = process.argv.slice(1);
-const isBackgroundLaunch = argv.includes("--background");
+let isBackgroundLaunch = argv.includes("--background");
 const isTestMode = argv.includes("--test-mode");
 const selfTestOutputArg = argv.find((value) => value.startsWith("--self-test-output="));
 const debugPortArg = argv.find((value) => value.startsWith("--remote-debugging-port="));
@@ -45,6 +51,7 @@ const DEFAULT_WINDOW_SIZE = Object.freeze({ width: 640, height: 820 });
 const MIN_WINDOW_SIZE = Object.freeze({ width: 520, height: 620 });
 
 const state = {
+  platform: process.platform,
   mode: WINDOW_MODES.WINDOW,
   preferences: { locale: "zh-CN", surface: "codex" },
   usage: null,
@@ -125,12 +132,22 @@ function updateStatus(patch) {
 }
 
 function updateHost(host) {
-  const integrated = String(host.processName || "").toLowerCase() === "chatgpt.exe";
+  const productProcess = String(host.processName || "").toLowerCase().replace(/\.exe$/, "");
+  const productState = productProcess === "chatgpt"
+    ? { integratedChatGpt: true, appName: "ChatGPT", surfaces: ["codex", "work", "chat"] }
+    : productProcess === "codex"
+      ? { integratedChatGpt: false, appName: "Codex", surfaces: ["codex"] }
+      : {};
   state.host = {
     ...state.host,
     ...host,
-    ...(integrated ? { integratedChatGpt: true, appName: "ChatGPT", surfaces: ["codex", "work", "chat"] } : {}),
+    ...productState,
   };
+  if (Array.isArray(state.host.surfaces) && !state.host.surfaces.includes(state.preferences.surface)) {
+    state.preferences.surface = "codex";
+    writeSettings();
+    broadcast("dashboard:preferences", state.preferences);
+  }
   broadcast("dashboard:host", state.host);
 }
 
@@ -229,7 +246,9 @@ function createTray() {
   const english = state.preferences.locale === "en";
   let image = nativeImage.createFromPath(iconPath());
   if (image.isEmpty()) image = nativeImage.createEmpty();
-  tray = new Tray(image.resize({ width: 18, height: 18 }));
+  image = image.resize({ width: 18, height: 18 });
+  if (process.platform === "darwin") image.setTemplateImage(true);
+  tray = new Tray(image);
   tray.setToolTip(english ? "ChatGPT Console" : "ChatGPT 控制台");
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -275,9 +294,19 @@ async function refreshDesktop() {
   }
 }
 
+async function attachNativeDesktopLayer() {
+  await runNativeLayer("desktop");
+  if (desktopLayerActive) return;
+  await refreshDesktop();
+  await new Promise((resolve) => setTimeout(resolve, 160));
+  await runNativeLayer("desktop");
+  if (!desktopLayerActive) throw new Error("Windows 桌面层暂时不可用");
+}
+
 async function restoreNativeLayer() {
   if (!desktopLayerActive) return;
-  await runNativeLayer("normal");
+  if (process.platform === "win32") await runNativeLayer("normal");
+  else if (process.platform === "darwin") clearMacWindowLayer(dashboardWindow);
   desktopLayerActive = false;
 }
 
@@ -307,6 +336,8 @@ async function applyWindowMode(mode, options = {}) {
   state.mode = mode;
   if (!options.skipSave) writeSettings();
 
+  clearMacWindowLayer(dashboardWindow);
+  setMacFloatingLayer(ballWindow, false);
   ballWindow.hide();
   dashboardWindow.setResizable(true);
   dashboardWindow.setFocusable(true);
@@ -317,6 +348,7 @@ async function applyWindowMode(mode, options = {}) {
   if (mode === WINDOW_MODES.FLOATING) {
     dashboardWindow.hide();
     ballWindow.setAlwaysOnTop(true, "floating");
+    setMacFloatingLayer(ballWindow, true);
     ballWindow.showInactive();
     snapBallToEdge();
   } else {
@@ -326,13 +358,19 @@ async function applyWindowMode(mode, options = {}) {
     } else if (mode === WINDOW_MODES.DESKTOP) {
       dashboardWindow.setSkipTaskbar(true);
       skipTaskbar = true;
+      if (process.platform === "darwin") {
+        desktopLayerActive = applyMacDesktopLayer(dashboardWindow);
+      }
     }
-    dashboardWindow.show();
-    dashboardWindow.focus();
+    if (mode === WINDOW_MODES.DESKTOP && process.platform === "darwin") dashboardWindow.showInactive();
+    else {
+      dashboardWindow.show();
+      dashboardWindow.focus();
+    }
     dashboardHasBeenShown = true;
-    if (mode === WINDOW_MODES.DESKTOP) {
+    if (mode === WINDOW_MODES.DESKTOP && process.platform === "win32") {
       try {
-        await runNativeLayer("desktop");
+        await attachNativeDesktopLayer();
       } catch (error) {
         updateStatus({
           state: "warning",
@@ -478,6 +516,41 @@ function startHostWatcher() {
   watcher.start();
 }
 
+function loginItemQueryOptions() {
+  return process.platform === "darwin"
+    ? { type: "mainAppService" }
+    : { path: process.execPath, args: ["--background"] };
+}
+
+function enableLoginItem() {
+  if (process.platform === "darwin") {
+    app.setLoginItemSettings({ openAtLogin: true, type: "mainAppService" });
+  } else {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: process.execPath,
+      args: ["--background"],
+    });
+  }
+}
+
+async function openChatGpt() {
+  if (process.platform !== "darwin") return shell.openExternal("codex://launch");
+  const home = app.getPath("home");
+  const names = state.host.appName === "Codex" ? ["Codex", "ChatGPT"] : ["ChatGPT", "Codex"];
+  for (const name of names) {
+    for (const applicationPath of [
+      `/Applications/${name}.app`,
+      path.join(home, "Applications", `${name}.app`),
+    ]) {
+      if (!fs.existsSync(applicationPath)) continue;
+      const error = await shell.openPath(applicationPath);
+      if (!error) return true;
+    }
+  }
+  return shell.openExternal(state.host.appName === "Codex" ? "codex://launch" : "chatgpt://");
+}
+
 async function diagnostics() {
   let nativeLayer = lastNativeLayer;
   if (dashboardWindow && process.platform === "win32") {
@@ -493,6 +566,7 @@ async function diagnostics() {
   }
   return {
     mode: state.mode,
+    platform: process.platform,
     desktopLayerActive,
     nativeLayer,
     main: dashboardWindow
@@ -500,6 +574,7 @@ async function diagnostics() {
           visible: dashboardWindow.isVisible(),
           minimized: dashboardWindow.isMinimized(),
           alwaysOnTop: dashboardWindow.isAlwaysOnTop(),
+          visibleOnAllWorkspaces: isVisibleOnAllWorkspaces(dashboardWindow),
           skipTaskbar,
           bounds: dashboardWindow.getBounds(),
         }
@@ -508,10 +583,11 @@ async function diagnostics() {
       ? {
           visible: ballWindow.isVisible(),
           alwaysOnTop: ballWindow.isAlwaysOnTop(),
+          visibleOnAllWorkspaces: isVisibleOnAllWorkspaces(ballWindow),
           bounds: ballWindow.getBounds(),
         }
       : null,
-    loginItem: app.getLoginItemSettings({ path: process.execPath, args: ["--background"] }),
+    loginItem: app.getLoginItemSettings(loginItemQueryOptions()),
     status: state.status,
     host: state.host,
   };
@@ -651,8 +727,12 @@ async function runSelfTest(outputPath) {
 
     await dashboardWindow.webContents.executeJavaScript("document.querySelector('[data-surface=codex]').click(); document.getElementById('language-button').click()");
     await waitForCondition(() => state.preferences.surface === "codex" && state.preferences.locale === "zh-CN");
-    await waitForCondition(() => state.host.detected && state.host.integratedChatGpt);
-    requireValue(state.host.surfaces?.length === 3, "未识别集成版 ChatGPT 宿主");
+    await waitForCondition(() => state.host.detected);
+    if (state.host.appName === "ChatGPT") {
+      requireValue(state.host.integratedChatGpt && state.host.surfaces?.length === 3, "未识别集成版 ChatGPT 宿主");
+    } else {
+      requireValue(state.host.appName === "Codex" && state.host.surfaces?.includes("codex"), "未识别 Codex 宿主");
+    }
     record("bilingual-chatgpt-surfaces", { englishUi, workUi, chatUi, host: state.host, workScreenshotPath });
 
     const bodyBackground = await dashboardWindow.webContents.executeJavaScript(
@@ -673,15 +753,22 @@ async function runSelfTest(outputPath) {
     );
     await waitForCondition(() => state.mode === WINDOW_MODES.DESKTOP && desktopLayerActive);
     let diag = await diagnostics();
-    requireValue(diag.nativeLayer?.parentHandle !== "0", "桌面层未绑定");
-    requireValue(diag.nativeLayer?.acceptsHit === true, "桌面模式窗口未接收原生命中测试");
-    record("desktop-layer-clickable", { nativeLayer: diag.nativeLayer });
+    if (process.platform === "win32") {
+      requireValue(diag.nativeLayer?.parentHandle !== "0", "桌面层未绑定");
+      requireValue(diag.nativeLayer?.acceptsHit === true, "桌面模式窗口未接收原生命中测试");
+      record("desktop-layer-clickable", { nativeLayer: diag.nativeLayer });
+    } else {
+      requireValue(diag.main?.visibleOnAllWorkspaces === true, "macOS 桌面模式未显示在所有桌面空间");
+      requireValue(diag.main?.alwaysOnTop === false, "macOS 桌面模式不应覆盖普通应用窗口");
+      record("desktop-spaces-mode", { main: diag.main });
+    }
 
     await dashboardWindow.webContents.executeJavaScript("document.getElementById('close-button').click()");
     await waitForCondition(() => !dashboardWindow.isVisible() && state.mode === WINDOW_MODES.WINDOW && !desktopLayerActive);
     diag = await diagnostics();
-    requireValue(diag.nativeLayer?.parentHandle === "0", "隐藏后仍残留桌面父级");
-    record("desktop-close-cleanup", { nativeLayer: diag.nativeLayer });
+    if (process.platform === "win32") requireValue(diag.nativeLayer?.parentHandle === "0", "隐藏后仍残留桌面父级");
+    else requireValue(diag.main?.visibleOnAllWorkspaces === false, "隐藏后仍残留 macOS 全桌面层");
+    record("desktop-close-cleanup", process.platform === "win32" ? { nativeLayer: diag.nativeLayer } : { main: diag.main });
 
     await applyWindowMode(WINDOW_MODES.TOP);
     await dashboardWindow.webContents.executeJavaScript(
@@ -810,7 +897,7 @@ function registerIpc() {
     pointerSession = null;
   });
   ipcMain.handle("dashboard:set-mode", (_event, mode) => applyWindowMode(mode));
-  ipcMain.handle("dashboard:open-chatgpt", () => shell.openExternal("codex://launch"));
+  ipcMain.handle("dashboard:open-chatgpt", () => openChatGpt());
   ipcMain.handle("dashboard:minimize", async () => {
     if (state.mode === WINDOW_MODES.DESKTOP) await hideDashboard();
     else dashboardWindow.minimize();
@@ -832,6 +919,9 @@ if (!gotLock) {
 } else {
   app.on("second-instance", () => showDashboard());
   app.whenReady().then(async () => {
+    if (process.platform === "darwin") {
+      isBackgroundLaunch ||= Boolean(app.getLoginItemSettings({ type: "mainAppService" }).wasOpenedAtLogin);
+    }
     readSettings();
     state.host = { ...state.host, ...detectIntegratedChatGpt() };
     queryIntegratedChatGptPackage().then((host) => {
@@ -843,11 +933,7 @@ if (!gotLock) {
     registerIpc();
 
     if (app.isPackaged && !isTestMode) {
-      app.setLoginItemSettings({
-        openAtLogin: true,
-        path: process.execPath,
-        args: ["--background"],
-      });
+      enableLoginItem();
     }
 
     startHostWatcher();
@@ -862,6 +948,8 @@ if (!gotLock) {
     }
   });
 }
+
+app.on("activate", () => showDashboard());
 
 app.on("before-quit", async () => {
   quitting = true;

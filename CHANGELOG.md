@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [1.2.0] - 2026-07-12
+
+### Added
+
+- Universal macOS DMG and ZIP builds for Apple Silicon and Intel.
+- Native macOS ChatGPT/Codex process and application-bundle detection.
+- macOS Codex CLI discovery for app bundles, official installer, Homebrew, npm, Cargo, and `PATH` locations.
+- Native macOS login item, menu-bar icon, all-Spaces desktop mode, and all-Spaces floating ball.
+- Windows and macOS CI plus a multi-platform automated release pipeline.
+
+### Changed
+
+- Product and host labels now distinguish integrated ChatGPT from the standalone Codex app.
+- Unsupported Work and Chat surfaces are disabled when only standalone Codex is available.
+
 ## [1.1.1] - 2026-07-10
 
 ### Added
@@ -19,4 +34,5 @@ All notable changes to this project are documented here.
 - Desktop-mode shutdown restores the native window layer to prevent a black desktop region.
 - Window hit testing and border rendering were corrected for transparent frameless windows.
 
+[1.2.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.2.0
 [1.1.1]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.1.1

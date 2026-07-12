@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   test:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, macos-14]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -20,3 +23,26 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  package-macos:
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run pack:mac
+      - name: Verify universal app bundle
+        shell: bash
+        run: |
+          app_path="$(find release/mac-universal -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$app_path"
+          archs="$(lipo -archs "$app_path/Contents/MacOS/Codex 使用量")"
+          echo "Architectures: $archs"
+          grep -q "x86_64" <<< "$archs"
+          grep -q "arm64" <<< "$archs"
