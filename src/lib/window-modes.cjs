@@ -1,6 +1,4 @@
 const WINDOW_MODES = Object.freeze({
-  TOP: "top",
-  DESKTOP: "desktop",
   WINDOW: "window",
   FLOATING: "floating",
 });
@@ -27,4 +25,19 @@ function snapFloatingBounds(bounds, workArea, gap = 8) {
   };
 }
 
-module.exports = { WINDOW_MODES, isWindowMode, snapFloatingBounds };
+function circleShapeRects(size) {
+  const diameter = Math.max(1, Math.round(Number(size) || 1));
+  const radius = diameter / 2;
+  const center = (diameter - 1) / 2;
+  const rects = [];
+  for (let y = 0; y < diameter; y += 1) {
+    const distance = Math.abs(y - center);
+    const halfWidth = Math.sqrt(Math.max(0, radius * radius - distance * distance));
+    const x = Math.max(0, Math.ceil(center - halfWidth));
+    const right = Math.min(diameter, Math.floor(center + halfWidth) + 1);
+    rects.push({ x, y, width: Math.max(1, right - x), height: 1 });
+  }
+  return rects;
+}
+
+module.exports = { WINDOW_MODES, circleShapeRects, isWindowMode, snapFloatingBounds };

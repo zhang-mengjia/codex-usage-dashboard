@@ -41,13 +41,16 @@
             <button id="refresh-button" class="icon-button" type="button" data-i18n-aria="refreshAll" data-i18n-title="refreshAll">
               <svg viewBox="0 0 20 20"><path d="M16 9a6 6 0 0 0-10.7-3.7L3.5 7M4 3.5V7h3.5M4 11a6 6 0 0 0 10.7 3.7l1.8-1.7M16 16.5V13h-3.5" /></svg>
             </button>
-            <button id="default-size-button" class="icon-button" type="button" data-i18n-aria="defaultSize" data-i18n-title="defaultSize">
-              <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /><path d="M7 3 3 7M13 3l4 4M17 13l-4 4M3 13l4 4" /></svg>
+            <button id="pin-button" class="icon-button" type="button" data-i18n-aria="pinWindow" data-i18n-title="pinWindow">
+              <svg viewBox="0 0 20 20"><path d="M6 3h8l-1.5 5 3 3v1h-11v-1l3-3z" /><path d="M10 12v5" /></svg>
+            </button>
+            <button id="floating-button" class="icon-button" type="button" data-i18n-aria="floatingBall" data-i18n-title="floatingBall">
+              <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6" /><path d="M4.8 13.1c2.8 1 7.6 1 10.4 0" /></svg>
             </button>
             <button id="minimize-button" class="icon-button" type="button" data-i18n-aria="minimize" data-i18n-title="minimize">
               <svg viewBox="0 0 20 20"><path d="M4 14h12" /></svg>
             </button>
-            <button id="layer-button" class="icon-button" type="button" aria-expanded="false" data-i18n-aria="windowLayer" data-i18n-title="windowLayer">
+            <button id="layer-button" class="icon-button" type="button" data-i18n-aria="maximizeWindow" data-i18n-title="maximizeWindow">
               <svg viewBox="0 0 20 20"><rect x="3.5" y="3.5" width="9" height="9" rx="2" /><path d="M7.5 12.5v1A2.5 2.5 0 0 0 10 16h3.5A2.5 2.5 0 0 0 16 13.5V10A2.5 2.5 0 0 0 13.5 7.5h-1" /></svg>
             </button>
             <button id="close-button" class="icon-button" type="button" data-i18n-aria="hideTray" data-i18n-title="hideTray">
@@ -55,13 +58,6 @@
             </button>
           </div>
 
-          <div id="layer-menu" class="layer-menu interactive" hidden>
-            <div class="layer-menu-title" data-i18n="windowLayerTitle">窗口层级</div>
-            <button type="button" data-mode="top"><span class="mode-icon">⌃</span><span><strong data-i18n="modeTop">置顶显示</strong><small data-i18n="modeTopDesc">始终位于其他窗口上方</small></span><span class="mode-check">✓</span></button>
-            <button type="button" data-mode="desktop"><span class="mode-icon">▣</span><span><strong data-i18n="modeDesktop">固定在桌面</strong><small data-i18n="modeDesktopDesc">应用窗口后方，仍可点击</small></span><span class="mode-check">✓</span></button>
-            <button type="button" data-mode="window"><span class="mode-icon">▢</span><span><strong data-i18n="modeWindow">普通窗口</strong><small data-i18n="modeWindowDesc">可拖动、缩放和最小化</small></span><span class="mode-check">✓</span></button>
-            <button type="button" data-mode="floating"><span class="mode-icon">●</span><span><strong data-i18n="modeFloating">悬浮球</strong><small data-i18n="modeFloatingDesc">吸附在屏幕左右边缘</small></span><span class="mode-check">✓</span></button>
-          </div>
         </header>
 
         <nav class="surface-bar interactive" aria-label="ChatGPT surface">
@@ -83,7 +79,10 @@
           <section class="card usage-card" aria-label="Codex usage">
             <div class="section-heading">
               <div><h2 data-i18n="usageTitle">Codex 使用额度</h2><p data-i18n="usageSubtitle">与当前 ChatGPT 账户共享</p></div>
-              <span id="reset-count" class="available-badge">重置 0 次</span>
+              <div class="usage-heading-actions">
+                <button id="connect-account-button" class="secondary-action interactive" type="button" data-i18n="connectAccount" hidden>连接账户</button>
+                <span id="reset-count" class="available-badge">可用次数 —</span>
+              </div>
             </div>
             <div class="limit-row">
               <div class="limit-copy"><strong data-i18n="fiveHourLimit">5 小时使用限制</strong><span id="primary-reset" data-i18n="waitingData">等待数据</span></div>
@@ -93,7 +92,13 @@
               <div class="limit-copy"><strong data-i18n="weeklyLimit">每周使用限额</strong><span id="secondary-reset" data-i18n="waitingData">等待数据</span></div>
               <div class="usage-meter"><div class="track"><div id="secondary-bar" class="bar"></div></div><span id="secondary-remaining">--</span></div>
             </div>
-            <div id="reset-list" class="reset-strip" data-i18n="loadingResets">正在读取重置额度…</div>
+            <div class="reset-details">
+              <button id="reset-details-toggle" class="reset-details-heading interactive" type="button" aria-expanded="true">
+                <span><strong data-i18n="resetDetailsTitle">使用限额重置</strong><small data-i18n="resetDetailsSubtitle">逐条查看每次重置机会</small></span>
+                <span class="reset-chevron">⌃</span>
+              </button>
+              <div id="reset-list" class="reset-list" data-i18n="loadingResets">正在读取重置额度…</div>
+            </div>
           </section>
 
           <section class="card context-card" data-codex-controls aria-label="Conversation context">

@@ -27,6 +27,7 @@ const fixture = {
       {
         id: "credit-1",
         status: "available",
+        resetType: "codexRateLimits",
         title: "Full reset (Weekly + 5 hr)",
         expiresAt: 1_785_110_712,
       },
@@ -48,6 +49,8 @@ test("normalizes the live Codex rate-limit payload", () => {
   assert.equal(value.secondary.remainingPercent, 97);
   assert.equal(value.resetCredits.availableCount, 2);
   assert.equal(value.resetCredits.items[0].id, "credit-1");
+  assert.equal(value.resetCredits.items[0].resetType, "codexRateLimits");
+  assert.equal(value.resetCredits.detailsAvailable, true);
   assert.equal(value.credits.balance, "0");
 });
 
@@ -55,6 +58,7 @@ test("keeps a missing reset-credit count unknown instead of inventing zero", () 
   const value = normalizeRateLimits({ rateLimits: fixture.rateLimits });
   assert.equal(value.resetCredits.availableCount, null);
   assert.equal(value.resetCredits.items.length, 0);
+  assert.equal(value.resetCredits.detailsAvailable, false);
 });
 
 test("clamps malformed percentages safely", () => {

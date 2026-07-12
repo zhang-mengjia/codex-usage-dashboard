@@ -12,13 +12,14 @@ An unofficial, open-source Windows and macOS desktop dashboard for monitoring Co
 
 ## Features
 
-- Shows five-hour and weekly limits, reset times, and available reset credits.
+- Shows only live five-hour and weekly limits, reset times, and reset counts returned by the official account endpoint; stale conversation snapshots are never presented as live data.
+- Shows every individual reset credit with its backend description, grant time, and expiry.
 - Shows the active account, recent conversations, context usage, and cached input.
 - Provides Codex, Work, and Chat semantics in integrated ChatGPT; standalone Codex exposes only applicable Codex controls.
 - Switches instantly between Chinese and English and remembers the choice.
 - Displays and controls model, reasoning effort, speed, permissions, Plan mode, and Goal mode.
-- Refreshes all data, compacts the selected conversation, and restores the default window size with one click.
-- Supports always-on-top, desktop, normal-window, and edge-snapped floating-ball modes.
+- Refreshes all data and compacts the selected conversation with one click.
+- Provides independent pin, floating-ball, minimize, and maximize/restore controls; desktop pinning has been removed.
 - Appears automatically when ChatGPT or Codex starts and remains available from the Windows tray or macOS menu bar.
 - Contains no plan-upgrade, credit-purchase, or add-credit controls.
 
@@ -57,30 +58,26 @@ Verify downloads with the release's `SHA256SUMS.txt`.
 
 ## Usage
 
-1. Start and sign in to ChatGPT or Codex, or install and sign in with Codex CLI.
+1. Start and sign in to ChatGPT or Codex, or install Codex CLI.
 2. Start Codex Usage Dashboard.
-3. In integrated ChatGPT, select the Codex, Work, or Chat surface at the top.
-4. Use the window-layer menu for always-on-top, desktop, normal-window, or floating-ball behavior.
-5. Runtime controls apply to the selected conversation; the UI states their scope.
+3. On first use, click **Connect account** and complete the official OpenAI browser flow. This isolated login avoids refresh-token races with ChatGPT/Codex.
+4. In integrated ChatGPT, select the Codex, Work, or Chat surface at the top.
+5. Use the pin, ball, and overlapping-window buttons for always-on-top, floating-ball, and maximize/restore behavior.
+6. Runtime controls apply to the selected conversation; the UI states their scope.
 
 The installed app registers a per-user login item but shows its main window only after a ChatGPT/Codex process is detected. Reopen or quit it from the Windows tray or macOS menu bar.
 
-### macOS window semantics
+### macOS window behavior
 
 - **Always on top**: stays above normal windows on the current Space.
-- **Show on all Spaces**: follows every Space at normal window level without covering other apps.
 - **Regular window**: standard movable, resizable, and minimizable window.
 - **Floating ball**: follows every Space, including fullscreen Spaces, and snaps to a screen edge.
 
-macOS has no Windows WorkerW desktop parent, so desktop mode uses the native all-Spaces equivalent described above.
-
 ## Data and privacy
 
-- Most data and controls use the local `app-server` protocol shipped with ChatGPT/Codex.
-- If the live quota endpoint is unavailable, the dashboard falls back to the latest local `token_count` event.
-- If the official endpoint omits reset credits, the dashboard reads the current account's desktop cache. It shows `—` when the value cannot be determined instead of inventing zero.
-- If the account endpoint omits profile data, the app only decodes the email and plan claims from the ID Token in the local `auth.json` file.
-- The app does not read, copy, display, store, or upload access and refresh tokens.
+- Live quota and individual reset-credit details come directly from official account endpoints through the local `app-server` shipped with ChatGPT/Codex.
+- The dashboard keeps an isolated local OAuth session for quota reads; Codex stores the credentials, and application code never reads, copies, displays, or uploads tokens.
+- When authentication or the live endpoint is unavailable, the dashboard shows an explicit error and `—`; it never substitutes stale conversation or cache values.
 - The app includes no telemetry, advertising, or remote analytics.
 
 ## Known limitations

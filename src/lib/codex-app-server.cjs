@@ -8,6 +8,7 @@ class CodexAppServerClient extends EventEmitter {
     this.executable = options.executable || null;
     this.spawnProcess = options.spawnProcess || spawn;
     this.requestTimeoutMs = options.requestTimeoutMs || 15_000;
+    this.env = options.env || process.env;
     this.process = null;
     this.nextId = 1;
     this.pending = new Map();
@@ -22,7 +23,7 @@ class CodexAppServerClient extends EventEmitter {
     const child = this.spawnProcess(executable, ["app-server", "--listen", "stdio://"], {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
-      env: process.env,
+      env: this.env,
     });
     this.process = child;
     child.stdout.setEncoding("utf8");
@@ -38,7 +39,7 @@ class CodexAppServerClient extends EventEmitter {
       clientInfo: {
         name: "codex-usage-dashboard",
         title: "Codex 使用量",
-        version: "1.1.1",
+        version: "1.3.0",
       },
       capabilities: {
         experimentalApi: true,
@@ -53,6 +54,16 @@ class CodexAppServerClient extends EventEmitter {
   async readRateLimits() {
     if (!this.process) await this.start();
     return this.request("account/rateLimits/read");
+  }
+
+  async readAccount(refreshToken = false) {
+    if (!this.process) await this.start();
+    return this.request("account/read", { refreshToken });
+  }
+
+  async startChatGptLogin() {
+    if (!this.process) await this.start();
+    return this.request("account/login/start", { type: "chatgpt" });
   }
 
   request(method, params) {
