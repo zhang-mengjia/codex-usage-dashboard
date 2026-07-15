@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here.
 
+## [1.4.1] - 2026-07-15
+
+### Fixed
+
+- The anti-aliased floating-ball window now has a fully transparent root canvas, removing the opaque white square around the circular UI.
+- Desktop self-tests now verify that all four compositor-surface corners are transparent.
+
+## [1.4.0] - 2026-07-15
+
+### Added
+
+- A larger anti-aliased SVG floating ball with a full-circumference remaining-quota ring, limit type, reset date, and live-status indicator.
+- Full-surface floating-ball dragging, click-versus-drag detection, immediate edge snapping, and persisted edge position.
+
+### Changed
+
+- Usage windows are identified from their actual duration instead of assuming the primary slot is five-hour and the secondary slot is weekly.
+- Weekly-only account payloads now render as one weekly limit in both the dashboard and floating ball, while older dual-window payloads remain supported.
+- The floating ball now uses a transparent square compositor surface instead of a pixel-stepped circular window shape, eliminating the visible jagged edge.
+
 ## [1.3.0] - 2026-07-12
 
 ### Added
@@ -52,6 +72,8 @@ All notable changes to this project are documented here.
 - Desktop-mode shutdown restores the native window layer to prevent a black desktop region.
 - Window hit testing and border rendering were corrected for transparent frameless windows.
 
-[1.2.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.2.0
+[1.4.1]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.1
+[1.4.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.0
 [1.3.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.3.0
+[1.2.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.2.0
 [1.1.1]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.1.1

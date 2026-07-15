@@ -84,12 +84,12 @@
                 <span id="reset-count" class="available-badge">可用次数 —</span>
               </div>
             </div>
-            <div class="limit-row">
-              <div class="limit-copy"><strong data-i18n="fiveHourLimit">5 小时使用限制</strong><span id="primary-reset" data-i18n="waitingData">等待数据</span></div>
+            <div id="primary-limit-row" class="limit-row">
+              <div class="limit-copy"><strong id="primary-label" data-i18n="usageLimit">使用限额</strong><span id="primary-reset" data-i18n="waitingData">等待数据</span></div>
               <div class="usage-meter"><div class="track"><div id="primary-bar" class="bar"></div></div><span id="primary-remaining">--</span></div>
             </div>
-            <div class="limit-row">
-              <div class="limit-copy"><strong data-i18n="weeklyLimit">每周使用限额</strong><span id="secondary-reset" data-i18n="waitingData">等待数据</span></div>
+            <div id="secondary-limit-row" class="limit-row" hidden>
+              <div class="limit-copy"><strong id="secondary-label" data-i18n="usageLimit">使用限额</strong><span id="secondary-reset" data-i18n="waitingData">等待数据</span></div>
               <div class="usage-meter"><div class="track"><div id="secondary-bar" class="bar"></div></div><span id="secondary-remaining">--</span></div>
             </div>
             <div class="reset-details">
@@ -158,10 +158,23 @@
     </main>
 
     <main id="floating-ball" class="floating-shell" aria-label="Codex usage floating ball" hidden>
-      <div class="ball-grip" data-i18n-title="dragBall" title="拖动悬浮球"></div>
-      <button id="ball-open" class="ball-open interactive" type="button" data-i18n-aria="openConsole">
-        <span id="ball-percent" class="ball-percent">--</span>
-        <span class="ball-label" data-i18n="fiveHourRemaining">5h 剩余</span>
+      <button id="ball-open" class="ball-open" type="button" data-i18n-aria="openConsole" data-i18n-title="dragBall">
+        <svg class="ball-ring" viewBox="0 0 108 108" aria-hidden="true">
+          <defs>
+            <linearGradient id="ball-ring-gradient" x1="10" y1="8" x2="96" y2="101" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#9b87d4" />
+              <stop offset="0.52" stop-color="#7255a5" />
+              <stop offset="1" stop-color="#4f3b78" />
+            </linearGradient>
+          </defs>
+          <circle class="ball-ring-track" cx="54" cy="54" r="47" pathLength="100" />
+          <circle id="ball-ring-progress" class="ball-ring-progress" cx="54" cy="54" r="47" pathLength="100" />
+        </svg>
+        <span class="ball-core">
+          <span id="ball-percent" class="ball-percent">--</span>
+          <span id="ball-label" class="ball-label" data-i18n="usageLimitShort">限额</span>
+          <span id="ball-reset" class="ball-reset">--</span>
+        </span>
         <span id="ball-status" class="ball-status connecting"></span>
       </button>
     </main>

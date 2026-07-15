@@ -9,12 +9,12 @@
     "zh-CN": {
       appTitle: "ChatGPT 控制台", loadingAccount: "正在读取账户…", connecting: "正在连接 Codex…",
       refreshAll: "刷新全部信息", minimize: "最小化", pinWindow: "置顶显示", floatingBall: "切换悬浮球", maximizeWindow: "全屏/恢复窗口", hideTray: "隐藏到托盘", hideMenuBar: "隐藏到菜单栏",
-      openChatGpt: "打开 ChatGPT", openHost: "打开 {app}", usageTitle: "Codex 使用额度", usageSubtitle: "与当前 ChatGPT 账户共享", fiveHourLimit: "5 小时使用限制", weeklyLimit: "每周使用限额",
+      openChatGpt: "打开 ChatGPT", openHost: "打开 {app}", usageTitle: "Codex 使用额度", usageSubtitle: "与当前 ChatGPT 账户共享", usageLimit: "使用限额", fiveHourLimit: "5 小时使用限制", weeklyLimit: "每周使用限额", customLimit: "{value}使用限额",
       waitingData: "等待数据", loadingResets: "正在读取重置额度…", contextTitle: "对话上下文", contextSubtitle: "选择最近对话并查看上下文占用", compact: "一键压缩",
       currentThread: "当前对话", loadingThreads: "正在读取最近对话…", noThread: "尚未选择对话", usedContext: "已用上下文", contextWindow: "上下文窗口", cachedInput: "缓存输入",
       runtimeTitle: "运行配置", runtimeSubtitle: "同步到所选对话，并保存为全局默认", scopeBadge: "当前对话 + 默认", model: "模型", reasoning: "推理强度", power: "能力强度", speed: "速度", permission: "权限",
       workModes: "工作模式", modesSubtitle: "对当前选择的对话立即生效", planMode: "计划模式", planDesc: "先澄清与规划，再进入执行", goalMode: "目标模式", goalDesc: "为当前对话设置持续目标",
-      goalPlaceholder: "输入目标内容；启用时将作为当前对话目标", settingsEffect: "设置切换将在当前对话的下一次发送时生效", refresh: "刷新", dragBall: "拖动悬浮球", openConsole: "打开 ChatGPT 控制台", fiveHourRemaining: "5h 剩余",
+      goalPlaceholder: "输入目标内容；启用时将作为当前对话目标", settingsEffect: "设置切换将在当前对话的下一次发送时生效", refresh: "刷新", dragBall: "拖动悬浮球，单击打开控制台", openConsole: "打开 ChatGPT 控制台", usageLimitShort: "限额", fiveHourLimitShort: "5 小时限额", weeklyLimitShort: "周限额", durationHours: "{value} 小时", durationDays: "{value} 天", ballResetAt: "{value}重置", ballWaiting: "等待同步", ballUsageAria: "{limit}，剩余 {value}%，{reset}",
       surfaceCodexCaption: "开发与本地智能体", surfaceWorkCaption: "文档、研究与工作流", surfaceChatCaption: "经典 ChatGPT 对话",
       surfaceCodexDesc: "完整监看 Codex 额度、线程、上下文和执行设置。", surfaceWorkDesc: "共享同一 Codex 额度与运行时，以通用工作语义显示高级设置。", surfaceChatDesc: "经典 Chat 由 ChatGPT 单独管理；此处只显示账户和明确标注的 Codex 额度。",
       hostRunning: "{app}{version} · 正在运行", hostWaiting: "等待 ChatGPT/Codex 启动", remaining: "剩余 {value}%", resetUnknown: "重置时间未知", resetAtTime: "将于 {value} 重置", resetAtDate: "将于 {value} 重置",
@@ -30,12 +30,12 @@
     en: {
       appTitle: "ChatGPT Console", loadingAccount: "Loading account…", connecting: "Connecting to Codex…",
       refreshAll: "Refresh all information", minimize: "Minimize", pinWindow: "Always on top", floatingBall: "Toggle floating ball", maximizeWindow: "Maximize/restore window", hideTray: "Hide to tray", hideMenuBar: "Hide to menu bar",
-      openChatGpt: "Open ChatGPT", openHost: "Open {app}", usageTitle: "Codex usage", usageSubtitle: "Shared with the current ChatGPT account", fiveHourLimit: "5-hour usage limit", weeklyLimit: "Weekly usage limit",
+      openChatGpt: "Open ChatGPT", openHost: "Open {app}", usageTitle: "Codex usage", usageSubtitle: "Shared with the current ChatGPT account", usageLimit: "Usage limit", fiveHourLimit: "5-hour usage limit", weeklyLimit: "Weekly usage limit", customLimit: "{value} usage limit",
       waitingData: "Waiting for data", loadingResets: "Loading reset credits…", contextTitle: "Conversation context", contextSubtitle: "Select a recent thread and inspect context usage", compact: "Compact now",
       currentThread: "Current thread", loadingThreads: "Loading recent threads…", noThread: "No thread selected", usedContext: "Context used", contextWindow: "Context window", cachedInput: "Cached input",
       runtimeTitle: "Runtime configuration", runtimeSubtitle: "Apply to the selected thread and save as global defaults", scopeBadge: "Thread + defaults", model: "Model", reasoning: "Reasoning effort", power: "Power", speed: "Speed", permission: "Permissions",
       workModes: "Work modes", modesSubtitle: "Applies immediately to the selected thread", planMode: "Plan mode", planDesc: "Clarify and plan before execution", goalMode: "Goal mode", goalDesc: "Set a persistent outcome for this thread",
-      goalPlaceholder: "Enter a goal; enabling it sets the current thread goal", settingsEffect: "Setting changes take effect on the next message in this thread", refresh: "Refresh", dragBall: "Drag floating ball", openConsole: "Open ChatGPT Console", fiveHourRemaining: "5h left",
+      goalPlaceholder: "Enter a goal; enabling it sets the current thread goal", settingsEffect: "Setting changes take effect on the next message in this thread", refresh: "Refresh", dragBall: "Drag the floating ball; click to open the console", openConsole: "Open ChatGPT Console", usageLimitShort: "Limit", fiveHourLimitShort: "5-hour limit", weeklyLimitShort: "Weekly limit", durationHours: "{value} hr", durationDays: "{value} days", ballResetAt: "Resets {value}", ballWaiting: "Syncing", ballUsageAria: "{limit}, {value}% remaining, {reset}",
       surfaceCodexCaption: "Development and local agents", surfaceWorkCaption: "Documents, research, and workflows", surfaceChatCaption: "Classic ChatGPT conversations",
       surfaceCodexDesc: "Full Codex quota, thread, context, and execution controls.", surfaceWorkDesc: "Shares the Codex quota and runtime, presented with general-work semantics.", surfaceChatDesc: "Classic Chat is managed separately by ChatGPT; only the account and explicitly labeled Codex quota are shown here.",
       hostRunning: "{app}{version} · running", hostWaiting: "Waiting for ChatGPT/Codex to start", remaining: "{value}% left", resetUnknown: "Reset time unknown", resetAtTime: "Resets at {value}", resetAtDate: "Resets on {value}",
@@ -103,6 +103,35 @@
     return String(number);
   }
 
+  function getUsageLimits() {
+    if (Array.isArray(usage?.limits)) return usage.limits.filter(Boolean);
+    return [usage?.primary, usage?.secondary].filter(Boolean);
+  }
+
+  function formatLimitDuration(durationMins) {
+    const duration = Number(durationMins);
+    if (!Number.isFinite(duration) || duration <= 0) return "";
+    if (duration % (24 * 60) === 0) return tr("durationDays", { value: duration / (24 * 60) });
+    if (duration % 60 === 0) return tr("durationHours", { value: duration / 60 });
+    return tr("durationHours", { value: Math.round((duration / 60) * 10) / 10 });
+  }
+
+  function limitLabel(value, short = false) {
+    if (value?.kind === "fiveHour") return tr(short ? "fiveHourLimitShort" : "fiveHourLimit");
+    if (value?.kind === "weekly") return tr(short ? "weeklyLimitShort" : "weeklyLimit");
+    const duration = formatLimitDuration(value?.windowDurationMins);
+    return duration ? tr("customLimit", { value: duration }) : tr(short ? "usageLimitShort" : "usageLimit");
+  }
+
+  function formatBallReset(value) {
+    if (!value?.resetsAt) return tr("ballWaiting");
+    const date = new Date(value.resetsAt * 1000);
+    const formatted = value.windowDurationMins <= 24 * 60
+      ? date.toLocaleTimeString(preferences.locale, { hour: "2-digit", minute: "2-digit", hour12: false })
+      : date.toLocaleDateString(preferences.locale, { month: "numeric", day: "numeric" });
+    return tr("ballResetAt", { value: formatted });
+  }
+
   function showToast(message, error = false) {
     if (isBall) return;
     const toast = byId("toast");
@@ -113,7 +142,10 @@
     toastTimer = setTimeout(() => { toast.hidden = true; }, 2_800);
   }
 
-  function renderLimit(prefix, value) {
+  function renderLimit(prefix, value, showPlaceholder = false) {
+    const row = byId(`${prefix}-limit-row`);
+    row.hidden = !value && !showPlaceholder;
+    byId(`${prefix}-label`).textContent = value ? limitLabel(value) : tr("usageLimit");
     const remaining = value?.remainingPercent;
     byId(`${prefix}-bar`).style.width = `${remaining ?? 0}%`;
     byId(`${prefix}-remaining`).textContent = remaining === undefined ? "--" : tr("remaining", { value: remaining });
@@ -121,12 +153,26 @@
   }
 
   function renderUsage() {
+    const limits = getUsageLimits();
     if (isBall) {
-      byId("ball-percent").textContent = usage?.primary ? `${usage.primary.remainingPercent}%` : "--";
+      const featured = limits.find((limit) => limit.kind === "weekly") || limits[0] || null;
+      const remaining = featured?.remainingPercent;
+      const reset = formatBallReset(featured);
+      const shell = byId("floating-ball");
+      const progress = byId("ball-ring-progress");
+      byId("ball-percent").textContent = Number.isFinite(remaining) ? `${remaining}%` : "--";
+      byId("ball-label").textContent = featured ? limitLabel(featured, true) : tr("usageLimitShort");
+      byId("ball-reset").textContent = reset;
+      progress.style.strokeDashoffset = String(100 - (Number.isFinite(remaining) ? remaining : 0));
+      shell.classList.toggle("warning", Number.isFinite(remaining) && remaining <= 25 && remaining > 10);
+      shell.classList.toggle("critical", Number.isFinite(remaining) && remaining <= 10);
+      byId("ball-open").setAttribute("aria-label", featured
+        ? tr("ballUsageAria", { limit: limitLabel(featured), value: remaining, reset })
+        : tr("openConsole"));
       return;
     }
-    renderLimit("primary", usage?.primary);
-    renderLimit("secondary", usage?.secondary);
+    renderLimit("primary", limits[0], !usage);
+    renderLimit("secondary", limits[1]);
     const count = usage?.resetCredits?.availableCount;
     byId("reset-count").textContent = count == null ? tr("resetCountUnknown") : tr("resetCount", { value: count });
     const items = usage?.resetCredits?.items || [];
@@ -381,7 +427,41 @@
   window.dashboardApi.onWindowState((value) => { windowState = value; renderWindowState(); });
 
   if (isBall) {
-    byId("ball-open").addEventListener("click", () => window.dashboardApi.restoreFromBall());
+    const ball = byId("ball-open");
+    const shell = byId("floating-ball");
+    let drag = null;
+    let suppressClickUntil = 0;
+    ball.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      drag = { pointerId: event.pointerId, startX: event.screenX, startY: event.screenY, moved: false };
+      ball.setPointerCapture(event.pointerId);
+      shell.classList.add("dragging");
+      window.dashboardApi.beginWindowAction({ action: "move-ball", screenX: event.screenX, screenY: event.screenY });
+    });
+    ball.addEventListener("pointermove", (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      if (Math.hypot(event.screenX - drag.startX, event.screenY - drag.startY) >= 4) drag.moved = true;
+      window.dashboardApi.updateWindowAction({ screenX: event.screenX, screenY: event.screenY });
+    });
+    const finishBallDrag = (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const moved = drag.moved;
+      drag = null;
+      shell.classList.remove("dragging");
+      if (ball.hasPointerCapture(event.pointerId)) ball.releasePointerCapture(event.pointerId);
+      window.dashboardApi.endWindowAction();
+      if (moved) suppressClickUntil = performance.now() + 300;
+    };
+    ball.addEventListener("pointerup", finishBallDrag);
+    ball.addEventListener("pointercancel", finishBallDrag);
+    ball.addEventListener("click", (event) => {
+      if (performance.now() < suppressClickUntil) {
+        event.preventDefault();
+        return;
+      }
+      window.dashboardApi.restoreFromBall();
+    });
   } else {
     for (const handle of document.querySelectorAll("[data-resize]")) bindWindowPointer(handle, "resize", handle.dataset.resize);
 

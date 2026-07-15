@@ -7,6 +7,7 @@ const projectRoot = path.resolve(__dirname, "..");
 const executable = process.env.DASHBOARD_EXE || path.join(projectRoot, "release", "win-unpacked", "Codex 使用量.exe");
 const resultsDirectory = path.join(projectRoot, "test-results");
 const reportPath = path.join(resultsDirectory, "smoke-report.json");
+const profilePath = path.join(resultsDirectory, "smoke-profile");
 
 async function waitForReport(timeoutMs = 90_000) {
   const deadline = Date.now() + timeoutMs;
@@ -21,8 +22,10 @@ async function main() {
   assert.ok(fs.existsSync(executable), `找不到待测试程序: ${executable}`);
   fs.mkdirSync(resultsDirectory, { recursive: true });
   if (fs.existsSync(reportPath)) fs.unlinkSync(reportPath);
+  const settingsPath = path.join(profilePath, "settings.json");
+  if (fs.existsSync(settingsPath)) fs.unlinkSync(settingsPath);
 
-  const args = ["--test-mode", `--self-test-output=${reportPath}`];
+  const args = [`--user-data-dir=${profilePath}`, "--test-mode", `--self-test-output=${reportPath}`];
   const launchArgs = path.basename(executable).toLowerCase() === "electron.exe"
     ? [projectRoot, ...args]
     : args;

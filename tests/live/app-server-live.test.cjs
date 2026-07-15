@@ -22,8 +22,9 @@ test("reads live account limits and individual reset credits", { timeout: 25_000
   const value = normalizeRateLimits(await client.readRateLimits());
   assert.equal(value.limitId, "codex");
   assert.equal(value.source, "codex-app-server");
-  assert.ok(value.primary.remainingPercent >= 0 && value.primary.remainingPercent <= 100);
-  assert.ok(value.secondary.remainingPercent >= 0 && value.secondary.remainingPercent <= 100);
+  assert.ok(value.limits.length >= 1);
+  assert.ok(value.limits.every((limit) => limit.remainingPercent >= 0 && limit.remainingPercent <= 100));
+  assert.ok(value.limits.every((limit) => ["fiveHour", "weekly", "custom"].includes(limit.kind)));
   assert.ok(Number.isFinite(value.resetCredits.availableCount));
   assert.equal(value.resetCredits.detailsAvailable, true);
   assert.ok(value.resetCredits.items.length <= value.resetCredits.availableCount);
