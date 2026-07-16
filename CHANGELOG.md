@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [1.4.2] - 2026-07-16
+
+### Fixed
+
+- Floating-ball dragging now uses main-process system cursor coordinates so mixed-DPI and multi-display layouts cannot send the ball off-screen.
+- Drag updates are constrained to the active display, and lost pointer capture or window blur now completes edge snapping safely.
+- Persisted floating-ball coordinates now use the actual post-snap window position.
+
 ## [1.4.1] - 2026-07-15
 
 ### Fixed
@@ -72,6 +80,7 @@ All notable changes to this project are documented here.
 - Desktop-mode shutdown restores the native window layer to prevent a black desktop region.
 - Window hit testing and border rendering were corrected for transparent frameless windows.
 
+[1.4.2]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.2
 [1.4.1]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.1
 [1.4.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.0
 [1.3.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.3.0

@@ -21,7 +21,7 @@ const {
   setMacFloatingLayer,
 } = require("./lib/platform-window.cjs");
 const { normalizeRateLimits } = require("./lib/usage-model.cjs");
-const { WINDOW_MODES, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
+const { WINDOW_MODES, clampFloatingBounds, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
 
 const argv = process.argv.slice(1);
 let isBackgroundLaunch = argv.includes("--background");
@@ -373,9 +373,10 @@ function snapBallToEdge() {
   const display = screen.getDisplayMatching(bounds);
   const snapped = snapFloatingBounds(bounds, display.workArea);
   if (snapped.x !== bounds.x || snapped.y !== bounds.y) {
-    ballWindow.setPosition(snapped.x, snapped.y, true);
+    ballWindow.setPosition(snapped.x, snapped.y, process.platform === "darwin");
   }
-  state.floatingBounds = { x: snapped.x, y: snapped.y };
+  const actual = process.platform === "darwin" ? snapped : ballWindow.getBounds();
+  state.floatingBounds = { x: actual.x, y: actual.y };
   writeSettings();
 }
 
@@ -586,10 +587,13 @@ function beginWindowPointerAction(payload) {
   const action = String(payload?.action || "");
   if (action === "move-ball") {
     if (!ballWindow || ballWindow.isDestroyed() || !ballWindow.isVisible()) return;
+    const pointer = isTestMode
+      ? { x: Number(payload.screenX), y: Number(payload.screenY) }
+      : screen.getCursorScreenPoint();
     pointerSession = {
       action,
-      startX: Number(payload.screenX),
-      startY: Number(payload.screenY),
+      startX: pointer.x,
+      startY: pointer.y,
       bounds: ballWindow.getBounds(),
     };
     return;
@@ -608,12 +612,21 @@ function beginWindowPointerAction(payload) {
 
 function updateWindowPointerAction(payload) {
   if (!pointerSession) return;
-  const deltaX = Number(payload.screenX) - pointerSession.startX;
-  const deltaY = Number(payload.screenY) - pointerSession.startY;
+  const pointer = pointerSession.action === "move-ball" && !isTestMode
+    ? screen.getCursorScreenPoint()
+    : { x: Number(payload.screenX), y: Number(payload.screenY) };
+  const deltaX = pointer.x - pointerSession.startX;
+  const deltaY = pointer.y - pointerSession.startY;
   const initial = pointerSession.bounds;
   if (pointerSession.action === "move-ball") {
     if (!ballWindow || ballWindow.isDestroyed()) return;
-    ballWindow.setPosition(Math.round(initial.x + deltaX), Math.round(initial.y + deltaY), false);
+    const display = screen.getDisplayNearestPoint(pointer);
+    const constrained = clampFloatingBounds({
+      ...initial,
+      x: initial.x + deltaX,
+      y: initial.y + deltaY,
+    }, display.workArea);
+    ballWindow.setPosition(constrained.x, constrained.y, false);
     return;
   }
   if (!dashboardWindow || dashboardWindow.isDestroyed()) return;

@@ -444,17 +444,21 @@
       if (Math.hypot(event.screenX - drag.startX, event.screenY - drag.startY) >= 4) drag.moved = true;
       window.dashboardApi.updateWindowAction({ screenX: event.screenX, screenY: event.screenY });
     });
-    const finishBallDrag = (event) => {
-      if (!drag || drag.pointerId !== event.pointerId) return;
+    const finishBallDrag = (event = null) => {
+      if (!drag || (event?.pointerId !== undefined && drag.pointerId !== event.pointerId)) return;
+      const pointerId = drag.pointerId;
       const moved = drag.moved;
       drag = null;
       shell.classList.remove("dragging");
-      if (ball.hasPointerCapture(event.pointerId)) ball.releasePointerCapture(event.pointerId);
+      if (ball.hasPointerCapture(pointerId)) ball.releasePointerCapture(pointerId);
       window.dashboardApi.endWindowAction();
       if (moved) suppressClickUntil = performance.now() + 300;
     };
     ball.addEventListener("pointerup", finishBallDrag);
     ball.addEventListener("pointercancel", finishBallDrag);
+    ball.addEventListener("lostpointercapture", finishBallDrag);
+    window.addEventListener("pointerup", finishBallDrag, true);
+    window.addEventListener("blur", () => finishBallDrag());
     ball.addEventListener("click", (event) => {
       if (performance.now() < suppressClickUntil) {
         event.preventDefault();
