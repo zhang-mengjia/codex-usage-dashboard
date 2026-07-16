@@ -21,7 +21,7 @@ const {
   setMacFloatingLayer,
 } = require("./lib/platform-window.cjs");
 const { normalizeRateLimits } = require("./lib/usage-model.cjs");
-const { WINDOW_MODES, circleShapeRects, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
+const { WINDOW_MODES, clampFloatingBounds, isWindowMode, snapFloatingBounds } = require("./lib/window-modes.cjs");
 
 const argv = process.argv.slice(1);
 let isBackgroundLaunch = argv.includes("--background");
@@ -38,7 +38,6 @@ let usageClient = null;
 let controlService = null;
 let refreshTimer = null;
 let reconnectTimer = null;
-let snapTimer = null;
 let quitting = false;
 let dashboardHasBeenShown = false;
 let skipTaskbar = false;
@@ -47,6 +46,7 @@ let activeLoginId = null;
 
 const DEFAULT_WINDOW_SIZE = Object.freeze({ width: 640, height: 820 });
 const MIN_WINDOW_SIZE = Object.freeze({ width: 520, height: 620 });
+const BALL_WINDOW_SIZE = 108;
 
 const state = {
   platform: process.platform,
@@ -63,6 +63,7 @@ const state = {
     error: null,
     lastSuccessfulAt: null,
   },
+  floatingBounds: null,
 };
 
 function rendererPath() {
@@ -99,12 +100,15 @@ function iconPath() {
 function readSettings() {
   try {
     const value = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
-    if ([2, 3, 4].includes(value.version)) {
+    if ([2, 3, 4, 5].includes(value.version)) {
       state.mode = value.mode === WINDOW_MODES.FLOATING ? WINDOW_MODES.FLOATING : WINDOW_MODES.WINDOW;
       state.window.alwaysOnTop = Boolean(value.alwaysOnTop || value.mode === "top");
       if (["zh-CN", "en"].includes(value.locale)) state.preferences.locale = value.locale;
       if (["codex", "work", "chat"].includes(value.surface)) state.preferences.surface = value.surface;
-      if (value.version !== 4) writeSettings();
+      if (Number.isFinite(value.floatingBounds?.x) && Number.isFinite(value.floatingBounds?.y)) {
+        state.floatingBounds = { x: Math.round(value.floatingBounds.x), y: Math.round(value.floatingBounds.y) };
+      }
+      if (value.version !== 5) writeSettings();
     } else {
       state.mode = WINDOW_MODES.WINDOW;
       writeSettings();
@@ -118,11 +122,12 @@ function writeSettings() {
   try {
     fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
     fs.writeFileSync(settingsPath(), JSON.stringify({
-      version: 4,
+      version: 5,
       mode: state.mode,
       alwaysOnTop: state.window.alwaysOnTop,
       locale: state.preferences.locale,
       surface: state.preferences.surface,
+      floatingBounds: state.floatingBounds,
     }, null, 2));
   } catch (error) {
     updateStatus({ error: `无法保存窗口设置: ${error.message}` });
@@ -228,13 +233,18 @@ function createDashboardWindow() {
 
 function createBallWindow() {
   const workArea = screen.getPrimaryDisplay().workArea;
+  const requestedBounds = {
+    x: state.floatingBounds?.x ?? workArea.x + workArea.width - BALL_WINDOW_SIZE - 8,
+    y: state.floatingBounds?.y ?? workArea.y + Math.round(workArea.height * 0.32),
+    width: BALL_WINDOW_SIZE,
+    height: BALL_WINDOW_SIZE,
+  };
+  const initialBounds = snapFloatingBounds(requestedBounds, screen.getDisplayMatching(requestedBounds).workArea);
   const window = new BrowserWindow({
-    width: 78,
-    height: 78,
-    x: workArea.x + workArea.width - 86,
-    y: workArea.y + Math.round(workArea.height * 0.32),
+    ...initialBounds,
     show: false,
     frame: false,
+    thickFrame: false,
     transparent: true,
     backgroundColor: "#00000000",
     roundedCorners: true,
@@ -253,17 +263,12 @@ function createBallWindow() {
     },
   });
   window.setAlwaysOnTop(true, "floating");
-  if (process.platform !== "darwin") window.setShape(circleShapeRects(78));
   window.loadFile(rendererPath(), { query: { view: "ball" } });
   window.on("close", (event) => {
     if (!quitting) {
       event.preventDefault();
       window.hide();
     }
-  });
-  window.on("moved", () => {
-    clearTimeout(snapTimer);
-    snapTimer = setTimeout(() => snapBallToEdge(), 180);
   });
   window.webContents.on("did-finish-load", () => {
     window.webContents.send("dashboard:usage", state.usage);
@@ -368,8 +373,11 @@ function snapBallToEdge() {
   const display = screen.getDisplayMatching(bounds);
   const snapped = snapFloatingBounds(bounds, display.workArea);
   if (snapped.x !== bounds.x || snapped.y !== bounds.y) {
-    ballWindow.setBounds(snapped, true);
+    ballWindow.setPosition(snapped.x, snapped.y, process.platform === "darwin");
   }
+  const actual = process.platform === "darwin" ? snapped : ballWindow.getBounds();
+  state.floatingBounds = { x: actual.x, y: actual.y };
+  writeSettings();
 }
 
 async function showDashboard() {
@@ -576,10 +584,25 @@ async function diagnostics() {
 }
 
 function beginWindowPointerAction(payload) {
-  if (!dashboardWindow || dashboardWindow.isDestroyed() || dashboardWindow.isMaximized()) return;
+  const action = String(payload?.action || "");
+  if (action === "move-ball") {
+    if (!ballWindow || ballWindow.isDestroyed() || !ballWindow.isVisible()) return;
+    const pointer = isTestMode
+      ? { x: Number(payload.screenX), y: Number(payload.screenY) }
+      : screen.getCursorScreenPoint();
+    pointerSession = {
+      action,
+      startX: pointer.x,
+      startY: pointer.y,
+      bounds: ballWindow.getBounds(),
+    };
+    return;
+  }
+  if (action !== "resize" || !dashboardWindow || dashboardWindow.isDestroyed() || dashboardWindow.isMaximized()) return;
   const edge = String(payload?.edge || "").toLowerCase();
   if (!/^(n|s|e|w|ne|nw|se|sw)$/.test(edge)) return;
   pointerSession = {
+    action,
     edge,
     startX: Number(payload.screenX),
     startY: Number(payload.screenY),
@@ -588,10 +611,25 @@ function beginWindowPointerAction(payload) {
 }
 
 function updateWindowPointerAction(payload) {
-  if (!pointerSession || !dashboardWindow || dashboardWindow.isDestroyed()) return;
-  const deltaX = Number(payload.screenX) - pointerSession.startX;
-  const deltaY = Number(payload.screenY) - pointerSession.startY;
+  if (!pointerSession) return;
+  const pointer = pointerSession.action === "move-ball" && !isTestMode
+    ? screen.getCursorScreenPoint()
+    : { x: Number(payload.screenX), y: Number(payload.screenY) };
+  const deltaX = pointer.x - pointerSession.startX;
+  const deltaY = pointer.y - pointerSession.startY;
   const initial = pointerSession.bounds;
+  if (pointerSession.action === "move-ball") {
+    if (!ballWindow || ballWindow.isDestroyed()) return;
+    const display = screen.getDisplayNearestPoint(pointer);
+    const constrained = clampFloatingBounds({
+      ...initial,
+      x: initial.x + deltaX,
+      y: initial.y + deltaY,
+    }, display.workArea);
+    ballWindow.setPosition(constrained.x, constrained.y, false);
+    return;
+  }
+  if (!dashboardWindow || dashboardWindow.isDestroyed()) return;
   const edge = pointerSession.edge;
   let { x, y, width, height } = initial;
   if (edge.includes("e")) width = Math.max(MIN_WINDOW_SIZE.width, initial.width + deltaX);
@@ -605,6 +643,12 @@ function updateWindowPointerAction(payload) {
     y = initial.y + (initial.height - height);
   }
   dashboardWindow.setBounds({ x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) }, false);
+}
+
+function endWindowPointerAction() {
+  const action = pointerSession?.action;
+  pointerSession = null;
+  if (action === "move-ball") snapBallToEdge();
 }
 
 async function waitForCondition(check, timeoutMs = 12_000) {
@@ -627,17 +671,18 @@ async function runSelfTest(outputPath) {
 
   try {
     await waitForCondition(() => !dashboardWindow.webContents.isLoadingMainFrame());
+    await applyWindowMode(WINDOW_MODES.WINDOW, { skipSave: true });
     let refreshed = null;
     try { refreshed = await refreshAll(); } catch {}
     const liveUsage = refreshed?.usage || state.usage;
     if (state.auth.state === "signedIn") {
       requireValue(liveUsage?.limitId === "codex", "实时额度读取失败");
       requireValue(liveUsage?.source !== "codex-session", "错误地使用了会话快照冒充实时额度");
+      requireValue(Array.isArray(liveUsage?.limits) && liveUsage.limits.length >= 1, "官方额度窗口没有被识别");
       requireValue(Number.isFinite(liveUsage?.resetCredits?.availableCount), "重置次数仍是未知值");
       record("live-usage", {
         source: liveUsage.source,
-        primaryRemaining: liveUsage.primary?.remainingPercent,
-        secondaryRemaining: liveUsage.secondary?.remainingPercent,
+        limits: liveUsage.limits.map((limit) => ({ kind: limit.kind, remainingPercent: limit.remainingPercent, windowDurationMins: limit.windowDurationMins })),
         resetCount: liveUsage.resetCredits.availableCount,
         resetItemCount: liveUsage.resetCredits.items.length,
       });
@@ -655,8 +700,7 @@ async function runSelfTest(outputPath) {
       resetCount: document.getElementById('reset-count').textContent,
       resetDetails: document.getElementById('reset-list').textContent,
       resetRows: document.querySelectorAll('.reset-item').length,
-      primaryRemaining: document.getElementById('primary-remaining').textContent,
-      secondaryRemaining: document.getElementById('secondary-remaining').textContent,
+      visibleLimits: [...document.querySelectorAll('.limit-row')].filter((row) => getComputedStyle(row).display !== 'none').map((row) => row.textContent),
       connectVisible: !document.getElementById('connect-account-button').hidden,
       purchaseContent: document.body.textContent.includes('升级套餐') || document.body.textContent.includes('添加额度')
     })`);
@@ -664,8 +708,8 @@ async function runSelfTest(outputPath) {
       requireValue(controlDom.resetCount.includes(String(liveUsage.resetCredits.availableCount)), "重置次数没有正确渲染到界面");
       requireValue(liveUsage.resetCredits.items.length === 0 || controlDom.resetDetails.includes(liveUsage.resetCredits.items[0].title), "单次重置详情没有渲染");
       requireValue(controlDom.resetRows === liveUsage.resetCredits.items.length, "单次重置详情数量与官方接口不一致");
-      requireValue(controlDom.primaryRemaining.includes(String(liveUsage.primary.remainingPercent)), "5 小时额度与官方接口不一致");
-      requireValue(controlDom.secondaryRemaining.includes(String(liveUsage.secondary.remainingPercent)), "每周额度与官方接口不一致");
+      requireValue(controlDom.visibleLimits.length === liveUsage.limits.length, "界面显示了不存在的额度窗口");
+      requireValue(liveUsage.limits.every((limit) => controlDom.visibleLimits.some((text) => text.includes(String(limit.remainingPercent)))), "额度窗口剩余量与官方接口不一致");
     } else requireValue(controlDom.connectVisible, "认证失效时没有显示连接账户入口");
     requireValue(!controlDom.purchaseContent, "仍残留购买额度内容");
     record("account-context-controls", controlDom);
@@ -732,8 +776,64 @@ async function runSelfTest(outputPath) {
 
     await dashboardWindow.webContents.executeJavaScript("document.getElementById('floating-button').click()");
     await waitForCondition(() => state.mode === WINDOW_MODES.FLOATING && ballWindow.isVisible());
-    requireValue(process.platform === "darwin" || circleShapeRects(78).length === 78, "悬浮球圆形区域无效");
-    record("floating-ball", { bounds: ballWindow.getBounds(), shaped: process.platform !== "darwin" });
+    if (!liveUsage) {
+      const previewUsage = {
+        limits: [{
+          kind: "weekly",
+          slot: "primary",
+          usedPercent: 4,
+          remainingPercent: 96,
+          windowDurationMins: 10_080,
+          resetsAt: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+        }],
+      };
+      dashboardWindow.webContents.send("dashboard:usage", previewUsage);
+      ballWindow.webContents.send("dashboard:usage", previewUsage);
+      await waitForCondition(() => ballWindow.webContents.executeJavaScript("document.getElementById('ball-percent').textContent === '96%'"));
+    }
+    const ballDom = await ballWindow.webContents.executeJavaScript(`({
+      ringCount: document.querySelectorAll('.ball-ring circle').length,
+      ringOffset: document.getElementById('ball-ring-progress').style.strokeDashoffset,
+      label: document.getElementById('ball-label').textContent,
+      reset: document.getElementById('ball-reset').textContent,
+      dragThreshold: window.pointerGesture?.BALL_DRAG_THRESHOLD_PX,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      shell: (() => { const rect = document.getElementById('floating-ball').getBoundingClientRect(); return { width: rect.width, height: rect.height }; })()
+    })`);
+    requireValue(ballDom.shell.width === BALL_WINDOW_SIZE && ballDom.shell.height === BALL_WINDOW_SIZE, `悬浮球视觉尺寸错误: ${JSON.stringify(ballDom)}`);
+    requireValue(ballDom.ringCount === 2 && ballDom.ringOffset !== "", "悬浮球额度圆环没有渲染");
+    requireValue(ballDom.dragThreshold === 8, `悬浮球拖动阈值没有加载: ${JSON.stringify(ballDom)}`);
+    requireValue(ballDom.label.includes("周") === (liveUsage?.limits || [{ kind: "weekly" }]).some((limit) => limit.kind === "weekly"), "悬浮球额度类型错误");
+    const ballScreenshotPath = path.join(path.dirname(outputPath), "floating-ball.png");
+    const ballScreenshot = await ballWindow.webContents.capturePage();
+    const ballBitmap = ballScreenshot.toBitmap();
+    const ballBitmapSize = ballScreenshot.getSize();
+    const cornerAlphas = [
+      [0, 0],
+      [ballBitmapSize.width - 1, 0],
+      [0, ballBitmapSize.height - 1],
+      [ballBitmapSize.width - 1, ballBitmapSize.height - 1],
+    ].map(([x, y]) => ballBitmap[(y * ballBitmapSize.width + x) * 4 + 3]);
+    requireValue(cornerAlphas.every((alpha) => alpha <= 8), `悬浮球窗口四角不是透明的: ${JSON.stringify(cornerAlphas)}`);
+    fs.writeFileSync(ballScreenshotPath, ballScreenshot.toPNG());
+
+    const ballBeforeDrag = ballWindow.getBounds();
+    const ballWorkArea = screen.getDisplayMatching(ballBeforeDrag).workArea;
+    const dragX = ballBeforeDrag.x + ballBeforeDrag.width / 2 < ballWorkArea.x + ballWorkArea.width / 2 ? 32 : -32;
+    const dragY = ballBeforeDrag.y + BALL_WINDOW_SIZE + 52 < ballWorkArea.y + ballWorkArea.height ? 44 : -44;
+    await ballWindow.webContents.executeJavaScript(`
+      window.dashboardApi.beginWindowAction({action:'move-ball',screenX:400,screenY:400});
+      window.dashboardApi.updateWindowAction({screenX:${400 + dragX},screenY:${400 + dragY}});
+      window.dashboardApi.endWindowAction();
+    `);
+    const expectedSnapped = snapFloatingBounds({ ...ballBeforeDrag, x: ballBeforeDrag.x + dragX, y: ballBeforeDrag.y + dragY }, ballWorkArea);
+    await waitForCondition(() => {
+      const bounds = ballWindow.getBounds();
+      return Math.abs(bounds.x - expectedSnapped.x) <= 2 && Math.abs(bounds.y - expectedSnapped.y) <= 2;
+    });
+    const ballAfterDrag = ballWindow.getBounds();
+    requireValue(Math.abs(ballAfterDrag.x - expectedSnapped.x) <= 2 && Math.abs(ballAfterDrag.y - expectedSnapped.y) <= 2, `悬浮球拖动后没有吸附到屏幕边缘: ${JSON.stringify({ ballBeforeDrag, expectedSnapped, ballAfterDrag })}`);
+    record("floating-ball", { before: ballBeforeDrag, after: ballAfterDrag, renderer: ballDom, cornerAlphas, screenshotPath: ballScreenshotPath });
 
     await ballWindow.webContents.executeJavaScript("document.getElementById('ball-open').click()");
     await waitForCondition(() => state.mode === WINDOW_MODES.WINDOW && dashboardWindow.isVisible());
@@ -849,9 +949,7 @@ function registerIpc() {
   });
   ipcMain.on("dashboard:window-action-begin", (_event, payload) => beginWindowPointerAction(payload));
   ipcMain.on("dashboard:window-action-update", (_event, payload) => updateWindowPointerAction(payload));
-  ipcMain.on("dashboard:window-action-end", () => {
-    pointerSession = null;
-  });
+  ipcMain.on("dashboard:window-action-end", () => endWindowPointerAction());
   ipcMain.handle("dashboard:set-mode", (_event, mode) => applyWindowMode(mode));
   ipcMain.handle("dashboard:toggle-pinned", () => togglePinned());
   ipcMain.handle("dashboard:toggle-floating", () => toggleFloating());

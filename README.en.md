@@ -12,14 +12,14 @@ An unofficial, open-source Windows and macOS desktop dashboard for monitoring Co
 
 ## Features
 
-- Shows only live five-hour and weekly limits, reset times, and reset counts returned by the official account endpoint; stale conversation snapshots are never presented as live data.
+- Dynamically shows the live quota windows, reset times, and reset counts actually returned by the official account endpoint; a weekly-only payload is never mislabeled as a five-hour limit, and stale conversation snapshots are never presented as live data.
 - Shows every individual reset credit with its backend description, grant time, and expiry.
 - Shows the active account, recent conversations, context usage, and cached input.
 - Provides Codex, Work, and Chat semantics in integrated ChatGPT; standalone Codex exposes only applicable Codex controls.
 - Switches instantly between Chinese and English and remembers the choice.
 - Displays and controls model, reasoning effort, speed, permissions, Plan mode, and Goal mode.
 - Refreshes all data and compacts the selected conversation with one click.
-- Provides independent pin, floating-ball, minimize, and maximize/restore controls; desktop pinning has been removed.
+- Provides independent pin, floating-ball, minimize, and maximize/restore controls. The anti-aliased floating ball shows remaining quota, limit type, and reset date in a progress ring; drag it anywhere and release to snap to the nearest screen edge.
 - Appears automatically when ChatGPT or Codex starts and remains available from the Windows tray or macOS menu bar.
 - Contains no plan-upgrade, credit-purchase, or add-credit controls.
 
@@ -62,7 +62,7 @@ Verify downloads with the release's `SHA256SUMS.txt`.
 2. Start Codex Usage Dashboard.
 3. On first use, click **Connect account** and complete the official OpenAI browser flow. This isolated login avoids refresh-token races with ChatGPT/Codex.
 4. In integrated ChatGPT, select the Codex, Work, or Chat surface at the top.
-5. Use the pin, ball, and overlapping-window buttons for always-on-top, floating-ball, and maximize/restore behavior.
+5. Use the pin, ball, and overlapping-window buttons for always-on-top, floating-ball, and maximize/restore behavior. Drag the whole floating ball to move it; releasing snaps it to and remembers the nearest screen edge.
 6. Runtime controls apply to the selected conversation; the UI states their scope.
 
 The installed app registers a per-user login item but shows its main window only after a ChatGPT/Codex process is detected. Reopen or quit it from the Windows tray or macOS menu bar.

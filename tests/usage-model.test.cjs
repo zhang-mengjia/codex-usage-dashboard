@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { clampPercent, normalizeRateLimits } = require("../src/lib/usage-model.cjs");
+const { classifyLimitWindow, clampPercent, normalizeRateLimits } = require("../src/lib/usage-model.cjs");
 
 const fixture = {
   rateLimits: {
@@ -47,11 +47,36 @@ test("normalizes the live Codex rate-limit payload", () => {
   assert.equal(value.planType, "plus");
   assert.equal(value.primary.remainingPercent, 82);
   assert.equal(value.secondary.remainingPercent, 97);
+  assert.deepEqual(value.limits.map((limit) => limit.kind), ["fiveHour", "weekly"]);
   assert.equal(value.resetCredits.availableCount, 2);
   assert.equal(value.resetCredits.items[0].id, "credit-1");
   assert.equal(value.resetCredits.items[0].resetType, "codexRateLimits");
   assert.equal(value.resetCredits.detailsAvailable, true);
   assert.equal(value.credits.balance, "0");
+});
+
+test("recognizes a weekly-only limit returned in the primary API slot", () => {
+  const value = normalizeRateLimits({
+    rateLimits: {
+      limitId: "codex",
+      primary: { usedPercent: 4, windowDurationMins: 10_080, resetsAt: 1_784_719_327 },
+      secondary: null,
+      planType: "plus",
+    },
+  });
+
+  assert.equal(value.primary.kind, "weekly");
+  assert.equal(value.primary.remainingPercent, 96);
+  assert.equal(value.secondary, null);
+  assert.equal(value.limits.length, 1);
+  assert.equal(value.limits[0].slot, "primary");
+});
+
+test("classifies limits by duration instead of their API slot", () => {
+  assert.equal(classifyLimitWindow(300), "fiveHour");
+  assert.equal(classifyLimitWindow(10_080), "weekly");
+  assert.equal(classifyLimitWindow(1_440), "custom");
+  assert.equal(classifyLimitWindow(null), "custom");
 });
 
 test("keeps a missing reset-credit count unknown instead of inventing zero", () => {
