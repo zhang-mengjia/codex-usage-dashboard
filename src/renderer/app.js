@@ -1,6 +1,7 @@
 (function () {
   const query = new URLSearchParams(window.location.search);
   const isBall = query.get("view") === "ball";
+  const { hasExceededDragThreshold } = window.pointerGesture;
   document.body.dataset.view = isBall ? "ball" : "dashboard";
   document.getElementById("dashboard").hidden = isBall;
   document.getElementById("floating-ball").hidden = !isBall;
@@ -434,24 +435,27 @@
     ball.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       event.preventDefault();
-      drag = { pointerId: event.pointerId, startX: event.screenX, startY: event.screenY, moved: false };
+      drag = { pointerId: event.pointerId, startX: event.screenX, startY: event.screenY, active: false };
       ball.setPointerCapture(event.pointerId);
-      shell.classList.add("dragging");
-      window.dashboardApi.beginWindowAction({ action: "move-ball", screenX: event.screenX, screenY: event.screenY });
     });
     ball.addEventListener("pointermove", (event) => {
       if (!drag || drag.pointerId !== event.pointerId) return;
-      if (Math.hypot(event.screenX - drag.startX, event.screenY - drag.startY) >= 4) drag.moved = true;
+      if (!drag.active) {
+        if (!hasExceededDragThreshold(drag.startX, drag.startY, event.screenX, event.screenY)) return;
+        drag.active = true;
+        shell.classList.add("dragging");
+        window.dashboardApi.beginWindowAction({ action: "move-ball", screenX: drag.startX, screenY: drag.startY });
+      }
       window.dashboardApi.updateWindowAction({ screenX: event.screenX, screenY: event.screenY });
     });
     const finishBallDrag = (event = null) => {
       if (!drag || (event?.pointerId !== undefined && drag.pointerId !== event.pointerId)) return;
       const pointerId = drag.pointerId;
-      const moved = drag.moved;
+      const moved = drag.active;
       drag = null;
       shell.classList.remove("dragging");
       if (ball.hasPointerCapture(pointerId)) ball.releasePointerCapture(pointerId);
-      window.dashboardApi.endWindowAction();
+      if (moved) window.dashboardApi.endWindowAction();
       if (moved) suppressClickUntil = performance.now() + 300;
     };
     ball.addEventListener("pointerup", finishBallDrag);

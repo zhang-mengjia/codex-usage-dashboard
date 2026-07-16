@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## [1.4.3] - 2026-07-16
+
+### Fixed
+
+- Long-pressing the floating ball no longer moves it because small pointer jitter is ignored until an 8-pixel drag threshold is crossed.
+- The main-process move session now starts only after deliberate drag activation, so a stationary press cannot trigger window movement or edge snapping.
+
 ## [1.4.2] - 2026-07-16
 
 ### Fixed
@@ -80,6 +87,7 @@ All notable changes to this project are documented here.
 - Desktop-mode shutdown restores the native window layer to prevent a black desktop region.
 - Window hit testing and border rendering were corrected for transparent frameless windows.
 
+[1.4.3]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.3
 [1.4.2]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.2
 [1.4.1]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.1
 [1.4.0]: https://github.com/zhang-mengjia/codex-usage-dashboard/releases/tag/v1.4.0

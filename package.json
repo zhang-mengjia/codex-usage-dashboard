@@ -1,6 +1,6 @@
 {
   "name": "codex-usage-dashboard",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "author": "MENGJIA ZHANG <apolloz.neuro@gmail.com>",
   "license": "MIT",
   "description": "A Windows and macOS desktop dashboard for live Codex usage limits.",

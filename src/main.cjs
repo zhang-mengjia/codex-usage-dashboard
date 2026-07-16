@@ -796,11 +796,13 @@ async function runSelfTest(outputPath) {
       ringOffset: document.getElementById('ball-ring-progress').style.strokeDashoffset,
       label: document.getElementById('ball-label').textContent,
       reset: document.getElementById('ball-reset').textContent,
+      dragThreshold: window.pointerGesture?.BALL_DRAG_THRESHOLD_PX,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       shell: (() => { const rect = document.getElementById('floating-ball').getBoundingClientRect(); return { width: rect.width, height: rect.height }; })()
     })`);
     requireValue(ballDom.shell.width === BALL_WINDOW_SIZE && ballDom.shell.height === BALL_WINDOW_SIZE, `悬浮球视觉尺寸错误: ${JSON.stringify(ballDom)}`);
     requireValue(ballDom.ringCount === 2 && ballDom.ringOffset !== "", "悬浮球额度圆环没有渲染");
+    requireValue(ballDom.dragThreshold === 8, `悬浮球拖动阈值没有加载: ${JSON.stringify(ballDom)}`);
     requireValue(ballDom.label.includes("周") === (liveUsage?.limits || [{ kind: "weekly" }]).some((limit) => limit.kind === "weekly"), "悬浮球额度类型错误");
     const ballScreenshotPath = path.join(path.dirname(outputPath), "floating-ball.png");
     const ballScreenshot = await ballWindow.webContents.capturePage();
